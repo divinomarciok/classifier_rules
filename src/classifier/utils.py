@@ -9,6 +9,7 @@ import os
 import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
+import sys
 
 import psycopg2
 from psycopg2 import OperationalError, DatabaseError as PgDatabaseError
@@ -16,8 +17,55 @@ from psycopg2 import OperationalError, DatabaseError as PgDatabaseError
 from classifier import ConfigError, DatabaseError
 
 
-# Configure logging
+# Configure logging module-level
 logger = logging.getLogger(__name__)
+
+
+def setup_logging(log_level: str = 'INFO') -> None:
+    """Configure application-wide logging
+
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+    Usage:
+        >>> setup_logging('DEBUG')  # Enable debug logging
+    """
+    # Convert string level to logging constant
+    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
+
+    # Format: [TIMESTAMP] [LEVEL] [MODULE] Message
+    log_format = '[%(asctime)s] [%(levelname)-8s] [%(name)s] %(message)s'
+
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(numeric_level)
+
+    # Console handler (stdout)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(numeric_level)
+    console_formatter = logging.Formatter(log_format)
+    console_handler.setFormatter(console_formatter)
+
+    # Remove existing handlers to avoid duplicates
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    root_logger.addHandler(console_handler)
+
+    # Optional: File handler for persistent logs
+    log_dir = Path(__file__).parent.parent.parent / 'logs'
+    log_dir.mkdir(exist_ok=True)
+
+    try:
+        file_handler = logging.FileHandler(log_dir / 'classifier.log')
+        file_handler.setLevel(numeric_level)
+        file_formatter = logging.Formatter(log_format)
+        file_handler.setFormatter(file_formatter)
+        root_logger.addHandler(file_handler)
+    except Exception as e:
+        logger.warning(f"Could not configure file logging: {e}")
+
+    logger.debug(f"Logging configured at level {log_level}")
 
 
 class Config:
