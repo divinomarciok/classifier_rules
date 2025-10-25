@@ -110,18 +110,24 @@
 - [ ] T017: Integration tests para rule evaluation flow
 - [x] T018: Rule model (criado em Phase 2)
 - [x] T019: Product model (criado em Phase 2)
-- [ ] T020: Matcher service (implementação)
-- [ ] T021: Evaluator service (implementação)
-- [ ] T022: RuleEngine class (implementação)
-- [ ] T023: Integração Matcher + Evaluator + RuleEngine
+- [x] T020: Matcher service (implementação completa)
+- [x] T021: Evaluator service (implementação completa)
+- [x] T022: RuleEngine class (implementação completa)
+- [x] T023: Integração Matcher + Evaluator + RuleEngine (done em T022)
 - [ ] T024: Unit tests para Matcher
 - [ ] T025: Unit tests para Evaluator
 - [ ] T026: Unit tests para RuleEngine
 - [x] T027: Unit tests para models
 
 **Dependências**: Sessão 1 concluída ✅
-**Status**: ⏳ INICIANDO
-**Data Início Estimada**: 2025-10-25
+**Status**: ⏳ EM PROGRESSO
+**Data Início**: 2025-10-25
+**Tempo Decorrido**: ~2.5 horas
+**Tokens Usados**: ~35k
+
+**Commits desta Sessão**:
+1. "T016 & T027: Contract tests for RuleEngine and unit tests for models"
+2. "T020, T021, T022: Implement Matcher, Evaluator, and RuleEngine services"
 
 ---
 
