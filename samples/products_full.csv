@@ -1,0 +1,21 @@
+id,description,ncm,size,quantity
+PROD_001,Laptop dell inspiron 15,84713090,2.5,50
+PROD_002,Monitor samsung 24 inch,85287200,5.2,30
+PROD_003,Keyboard logitech wireless,84711000,0.8,100
+PROD_004,Mouse optical usb,84714000,0.2,150
+PROD_005,USB cable type c,85444200,0.05,500
+PROD_006,Desktop computer hp pavilion,84713090,8.0,25
+PROD_007,Tablet samsung galaxy tab,85171200,0.6,40
+PROD_008,Smartphone samsung galaxy a12,85171200,0.18,75
+PROD_009,Headphones sony wh-ch500,85184200,0.3,60
+PROD_010,Power bank anker 20000mah,85044030,0.45,80
+PROD_011,Network router wifi 6,85176100,0.5,35
+PROD_012,Network switch managed,85176200,1.2,20
+PROD_013,External ssd samsung 1tb,84717090,0.15,45
+PROD_014,Webcam logitech 1080p,85258090,0.25,50
+PROD_015,Mechanical keyboard corsair,84711000,1.0,70
+PROD_016,Graphics card nvidia rtx 3060,84714000,0.8,15
+PROD_017,Motherboard asus b550,84714000,0.3,20
+PROD_018,RAM memory corsair 16gb,85042990,0.08,100
+PROD_019,SSD nvme samsung 500gb,84717090,0.08,80
+PROD_020,Power supply modular 750w,85044030,2.5,30
