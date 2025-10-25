@@ -42,8 +42,19 @@ class Evaluator:
                - If True, add to matches list
             2. Return list of matching rules
         """
-        # TODO: Implement matching logic
-        pass
+        matching = []
+
+        for rule in rules:
+            try:
+                if Matcher.matches_all_criteria(product, rule):
+                    matching.append(rule)
+                    logger.debug(f"Rule {rule.id} ({rule.nome}) matched product")
+            except Exception as e:
+                logger.warning(f"Error evaluating rule {rule.id}: {e}")
+                # Continue with next rule on error
+
+        logger.debug(f"Found {len(matching)} matching rules from {len(rules)} total")
+        return matching
 
     @staticmethod
     def select_winner(matching_rules: List[Rule]) -> Rule:
@@ -77,5 +88,24 @@ class Evaluator:
             >>> winner = Evaluator.select_winner([new_rule, old_rule])
             >>> assert winner.id == 1  # Older rule wins tiebreaker
         """
-        # TODO: Implement priority resolution with tiebreaker
-        pass
+        from classifier import EvaluationError
+
+        if not matching_rules:
+            raise EvaluationError("No matching rules provided to select_winner()")
+
+        # Sort by:
+        # 1. Priority DESC (highest first) - FR-004, FR-005
+        # 2. Creation date ASC (oldest first) - FR-006 tiebreaker
+        sorted_rules = sorted(
+            matching_rules,
+            key=lambda r: (-r.prioridade, r.data_criacao)
+        )
+
+        winner = sorted_rules[0]
+
+        logger.debug(
+            f"Priority resolution: Selected rule {winner.id} "
+            f"(priority={winner.priority}, created={winner.data_criacao})"
+        )
+
+        return winner

@@ -9,8 +9,11 @@ from typing import Optional, Dict, Any
 import time
 import logging
 
-from classifier import ProductError, DatabaseError
+from classifier import ProductError, DatabaseError, EvaluationError
 from classifier.models import Product, ClassificationResult, Rule
+from classifier.matcher import Matcher
+from classifier.evaluator import Evaluator
+from classifier.utils import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +52,44 @@ class RuleEngine:
         Raises:
             DatabaseError: If query fails
         """
-        # TODO: Implement database query
-        pass
+        try:
+            if not self.db_connection:
+                raise DatabaseError("Database connection not configured")
+
+            cursor = self.db_connection.cursor()
+
+            # FR-003: Only fetch active rules
+            cursor.execute("""
+                SELECT
+                    id, prioridade, nome, ativo,
+                    criterio_palavras_chave, criterio_ncm,
+                    criterio_tamanho_min, criterio_tamanho_max,
+                    criterio_quantidade_min, criterio_quantidade_max,
+                    criterio_categoria,
+                    resultado_classificacao,
+                    data_criacao, data_atualizacao
+                FROM regras_de_classificacao
+                WHERE ativo = TRUE
+                ORDER BY prioridade DESC, data_criacao ASC
+            """)
+
+            rows = cursor.fetchall()
+            rules = [Rule.from_db_row(row) for row in rows]
+
+            cursor.close()
+
+            logger.info(f"Loaded {len(rules)} active rules from database")
+            return rules
+
+        except Exception as e:
+            logger.error(f"Error loading rules from database: {e}")
+            raise DatabaseError(f"Failed to load rules from database: {e}") from e
 
     def _initialize_cache(self) -> None:
         """Load rules into memory cache if caching enabled"""
         if self.cache_rules:
             self._rules_cache = self._load_rules()
-            self.logger.info(f"Loaded {len(self._rules_cache)} rules into cache")
+            logger.info(f"Loaded {len(self._rules_cache)} rules into cache")
 
     def get_rules(self, active_only: bool = True) -> list:
         """Get list of rules
@@ -67,15 +100,21 @@ class RuleEngine:
         Returns:
             list: List of Rule objects
         """
-        # TODO: Implement filtering
-        pass
+        if self._rules_cache is not None:
+            # Return cached rules
+            if active_only:
+                return [r for r in self._rules_cache if r.is_active()]
+            return self._rules_cache
+
+        # No cache, load from database
+        return self._load_rules()
 
     def refresh_cache(self) -> None:
         """Reload rules from database into cache"""
         self._rules_cache = None
         if self.cache_rules:
             self._initialize_cache()
-        self.logger.info("Rule cache refreshed")
+        logger.info("Rule cache refreshed")
 
     def evaluate(
         self,
@@ -118,14 +157,83 @@ class RuleEngine:
         start_time = time.time()
 
         try:
-            # TODO: Implement evaluation logic
-            pass
+            if user is None:
+                user = 'system'
 
-        except ProductError:
-            raise
-        except DatabaseError:
+            # 1. Validate and convert product data to Product object
+            if isinstance(product_data, dict):
+                # Extract required fields
+                description = product_data.get('description')
+                ncm = product_data.get('ncm')
+
+                if not description or not ncm:
+                    raise ProductError(
+                        "Product data missing required fields: 'description' and 'ncm' are required"
+                    )
+
+                # Create Product object
+                product = Product(**product_data)
+            elif isinstance(product_data, Product):
+                product = product_data
+            else:
+                raise ProductError(f"Invalid product type: {type(product_data)}")
+
+            # 2. Get all active rules
+            rules = self.get_rules(active_only=True)
+
+            if not rules:
+                logger.warning("No active rules found in database")
+                return ClassificationResult(
+                    classification='NO_MATCH',
+                    success=True,
+                    message='No active rules in system'
+                )
+
+            # 3. Find matching rules (FR-002, FR-003)
+            matching_rules = Evaluator.get_matching_rules(product, rules)
+
+            elapsed_ms = int((time.time() - start_time) * 1000)
+
+            # 4. Handle no-match case (FR-008)
+            if not matching_rules:
+                logger.info(f"No rules matched for product {product.id}")
+                return ClassificationResult(
+                    classification='NO_MATCH',
+                    success=True,
+                    evaluation_time_ms=elapsed_ms,
+                    message='No matching rules found'
+                )
+
+            # 5. Select winner (FR-004, FR-005, FR-006)
+            try:
+                winner = Evaluator.select_winner(matching_rules)
+            except EvaluationError as e:
+                logger.error(f"Error selecting winner: {e}")
+                raise
+
+            # 6. Build result
+            result = ClassificationResult(
+                classification=winner.resultado_classificacao,
+                rule_id=winner.id,
+                rule_name=winner.nome,
+                priority=winner.prioridade,
+                matched_criteria=['criterio_' + c for c in ['palavras_chave', 'ncm', 'tamanho_min', 'tamanho_max', 'quantidade_min', 'quantidade_max', 'categoria'] if getattr(winner, f'criterio_{c}', None) is not None],
+                evaluation_time_ms=elapsed_ms,
+                success=True,
+                message=f'Matched rule {winner.id} ({winner.nome})'
+            )
+
+            logger.info(f"Product {product.id} classified as {result.classification} by rule {winner.id}")
+
+            # 7. Log to audit table (FR-007) - delegated to caller or middleware
+            # This is typically done at a higher level, but we can record here if needed
+
+            return result
+
+        except (ProductError, DatabaseError, EvaluationError):
+            # Re-raise known exceptions
             raise
         except Exception as e:
             elapsed_ms = int((time.time() - start_time) * 1000)
-            self.logger.error(f"Unexpected error during evaluation: {e}")
-            raise
+            logger.error(f"Unexpected error during evaluation: {e}", exc_info=True)
+            raise EvaluationError(f"Unexpected error during evaluation: {e}") from e
