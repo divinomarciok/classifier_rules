@@ -105,7 +105,7 @@ class Evaluator:
 
         logger.debug(
             f"Priority resolution: Selected rule {winner.id} "
-            f"(priority={winner.priority}, created={winner.data_criacao})"
+            f"(priority={winner.prioridade}, created={winner.data_criacao})"
         )
 
         return winner

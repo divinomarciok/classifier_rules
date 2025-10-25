@@ -147,9 +147,10 @@ class TestProductModel:
             stock_level=50
         )
 
-        assert product.supplier == "Supplier X"
-        assert product.purchase_price == 100.50
-        assert product.stock_level == 50
+        # Extra fields should be accessible via get_field() method
+        assert product.get_field('supplier') == "Supplier X"
+        assert product.get_field('purchase_price') == 100.50
+        assert product.get_field('stock_level') == 50
 
     def test_product_get_field_standard_fields(self):
         """Test Product.get_field() for standard fields"""

@@ -87,47 +87,73 @@
 
 ---
 
-### Sessão 2: User Story 1 - Basic Rule Evaluation (T016-T027) - ⏳ INICIANDO
+### Sessão 2: User Story 1 - Basic Rule Evaluation (T016-T027) - ✅ COMPLETA
 
 **Objetivo**: Implementar motor de avaliação de regras básico
 
 **Tarefas Planejadas**:
-- T016: Contract tests para RuleEngine.evaluate() ⏳
-- T017: Integration tests para rule evaluation flow
-- T018: Criar/Completar Rule model (já criado, need verify)
-- T019: Criar/Completar Product model (já criado, need verify)
-- T020: Criar Matcher service (implementação)
-- T021: Criar Evaluator service (implementação)
-- T022: Criar RuleEngine class (implementação)
-- T023: Integração Matcher + Evaluator + RuleEngine
-- T024: Unit tests para Matcher
-- T025: Unit tests para Evaluator
-- T026: Unit tests para RuleEngine
-- T027: Unit tests para models
+- T016: Contract tests para RuleEngine.evaluate() ✅
+- T017: Integration tests para rule evaluation flow ✅
+- T018: Criar/Completar Rule model (já criado, need verify) ✅
+- T019: Criar/Completar Product model (já criado, need verify) ✅
+- T020: Criar Matcher service (implementação) ✅
+- T021: Criar Evaluator service (implementação) ✅
+- T022: Criar RuleEngine class (implementação) ✅
+- T023: Integração Matcher + Evaluator + RuleEngine ✅
+- T024: Unit tests para Matcher ✅
+- T025: Unit tests para Evaluator ✅
+- T026: Unit tests para RuleEngine ✅
+- T027: Unit tests para models ✅
 
 **Tarefas Completas**:
 - [x] T016: Contract tests para RuleEngine.evaluate()
-- [ ] T017: Integration tests para rule evaluation flow
+- [x] T017: Integration tests para rule evaluation flow (17 tests)
 - [x] T018: Rule model (criado em Phase 2)
 - [x] T019: Product model (criado em Phase 2)
 - [x] T020: Matcher service (implementação completa)
 - [x] T021: Evaluator service (implementação completa)
 - [x] T022: RuleEngine class (implementação completa)
 - [x] T023: Integração Matcher + Evaluator + RuleEngine (done em T022)
-- [ ] T024: Unit tests para Matcher
-- [ ] T025: Unit tests para Evaluator
-- [ ] T026: Unit tests para RuleEngine
-- [x] T027: Unit tests para models
+- [x] T024: Unit tests para Matcher (42 tests)
+- [x] T025: Unit tests para Evaluator (16 tests)
+- [x] T026: Unit tests para RuleEngine (29 tests)
+- [x] T027: Unit tests para models (16 tests)
 
 **Dependências**: Sessão 1 concluída ✅
-**Status**: ⏳ EM PROGRESSO
+**Status**: ✅ COMPLETA
 **Data Início**: 2025-10-25
-**Tempo Decorrido**: ~2.5 horas
-**Tokens Usados**: ~35k
+**Data Conclusão**: 2025-10-25 (continuação)
+**Tempo Decorrido**: ~3.5 horas
+**Tokens Usados**: ~50k
+
+**Arquivos Criados/Modificados**:
+```
+tests/unit/
+├── test_matcher.py (42 tests)
+├── test_evaluator.py (16 tests)
+├── test_rule_engine.py (29 tests)
+└── test_models.py (16 tests - com correção)
+
+tests/integration/
+└── test_rule_evaluation.py (17 tests)
+
+src/classifier/
+├── evaluator.py (bug fix: winner.prioridade not priority)
+└── matcher.py (no changes needed - tests passed)
+
+tests/contract/
+└── test_rule_engine_api.py (12 tests - requires database)
+```
+
+**Estatísticas de Testes**:
+- Total de testes: 125 (42+16+29+16+17)
+- Taxa de sucesso: 100% (tests sem database)
+- Cobertura: Matcher, Evaluator, RuleEngine, Product, Rule, ClassificationResult
 
 **Commits desta Sessão**:
 1. "T016 & T027: Contract tests for RuleEngine and unit tests for models"
 2. "T020, T021, T022: Implement Matcher, Evaluator, and RuleEngine services"
+3. "T024, T025, T026, T017: Complete unit and integration tests for US1"
 
 ---
 
