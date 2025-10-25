@@ -6,7 +6,7 @@ Constitutional Principle V (Auditability)
 """
 
 import logging
-import json
+from datetime import datetime
 from typing import Optional, Dict, List, Any
 
 from classifier.models import AuditEntry
@@ -66,8 +66,62 @@ class AuditLog:
             4. Execute INSERT
             5. Return inserted entry ID
         """
-        # TODO: Implement audit recording
-        pass
+        try:
+            if not self.db_connection:
+                logger.warning("No database connection for audit logging")
+                return None
+
+            cursor = self.db_connection.cursor()
+
+            # Extract product information
+            product_id = product_data.get('id')
+            product_description = product_data.get('description', '')
+
+            # Format matched criteria as pipe-separated string
+            criteria_str = ' | '.join(matched_criteria) if matched_criteria else 'NONE'
+
+            # Insert audit entry
+            cursor.execute("""
+                INSERT INTO auditoria_classificacao (
+                    id_regra,
+                    id_produto,
+                    descricao_produto,
+                    resultado_classificacao,
+                    data_classificacao,
+                    usuario,
+                    criterios_correspondentes,
+                    tempo_avaliacao_ms
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                RETURNING id
+            """, (
+                rule_id,
+                product_id,
+                product_description,
+                classification_result,
+                datetime.now(),
+                user,
+                criteria_str,
+                evaluation_time_ms,
+            ))
+
+            audit_id = cursor.fetchone()[0]
+            self.db_connection.commit()
+            cursor.close()
+
+            logger.info(
+                f"Audit log {audit_id}: rule={rule_id}, product={product_id}, "
+                f"result={classification_result}, user={user}"
+            )
+
+            return audit_id
+
+        except Exception as e:
+            logger.error(f"Error recording audit log: {e}")
+            if self.db_connection:
+                self.db_connection.rollback()
+            raise
 
     def get_product_history(self, product_id: str, limit: int = 100) -> List[Dict[str, Any]]:
         """Get all classifications for a product
@@ -87,8 +141,30 @@ class AuditLog:
             ORDER BY data_classificacao DESC
             LIMIT limit
         """
-        # TODO: Implement product history query
-        pass
+        try:
+            if not self.db_connection:
+                return []
+
+            cursor = self.db_connection.cursor()
+
+            cursor.execute("""
+                SELECT * FROM auditoria_classificacao
+                WHERE id_produto = %s
+                ORDER BY data_classificacao DESC
+                LIMIT %s
+            """, (product_id, limit))
+
+            rows = cursor.fetchall()
+            cursor.close()
+
+            entries = [self._row_to_dict(row) for row in rows]
+            logger.debug(f"Retrieved {len(entries)} audit entries for product {product_id}")
+
+            return entries
+
+        except Exception as e:
+            logger.error(f"Error querying product history: {e}")
+            return []
 
     def get_rule_statistics(self, rule_id: int) -> Dict[str, Any]:
         """Get statistics for a rule
@@ -116,8 +192,39 @@ class AuditLog:
             FROM auditoria_classificacao
             WHERE id_regra = rule_id
         """
-        # TODO: Implement rule statistics query
-        pass
+        try:
+            if not self.db_connection:
+                return {}
+
+            cursor = self.db_connection.cursor()
+
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as times_applied,
+                    MAX(data_classificacao) as last_applied,
+                    AVG(tempo_avaliacao_ms) as avg_evaluation_time_ms,
+                    MIN(tempo_avaliacao_ms) as min_evaluation_time_ms,
+                    MAX(tempo_avaliacao_ms) as max_evaluation_time_ms
+                FROM auditoria_classificacao
+                WHERE id_regra = %s
+            """, (rule_id,))
+
+            row = cursor.fetchone()
+            cursor.close()
+
+            if row:
+                return {
+                    'times_applied': row[0],
+                    'last_applied': row[1],
+                    'avg_evaluation_time_ms': float(row[2]) if row[2] else 0,
+                    'min_evaluation_time_ms': row[3],
+                    'max_evaluation_time_ms': row[4],
+                }
+            return {}
+
+        except Exception as e:
+            logger.error(f"Error querying rule statistics: {e}")
+            return {}
 
     def get_no_match_classifications(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get classifications where no rule matched
@@ -130,5 +237,49 @@ class AuditLog:
         Returns:
             list: Audit entries where id_regra IS NULL (no match)
         """
-        # TODO: Implement no-match query
-        pass
+        try:
+            if not self.db_connection:
+                return []
+
+            cursor = self.db_connection.cursor()
+
+            cursor.execute("""
+                SELECT * FROM auditoria_classificacao
+                WHERE id_regra IS NULL
+                ORDER BY data_classificacao DESC
+                LIMIT %s
+            """, (limit,))
+
+            rows = cursor.fetchall()
+            cursor.close()
+
+            entries = [self._row_to_dict(row) for row in rows]
+            logger.debug(f"Retrieved {len(entries)} no-match classifications")
+
+            return entries
+
+        except Exception as e:
+            logger.error(f"Error querying no-match classifications: {e}")
+            return []
+
+    @staticmethod
+    def _row_to_dict(row: tuple) -> Dict[str, Any]:
+        """Convert database row to dictionary
+
+        Args:
+            row: Database row from auditoria_classificacao
+
+        Returns:
+            dict: Row data as dictionary
+        """
+        return {
+            'id': row[0],
+            'id_regra': row[1],
+            'id_produto': row[2],
+            'descricao_produto': row[3],
+            'resultado_classificacao': row[4],
+            'data_classificacao': row[5],
+            'usuario': row[6],
+            'criterios_correspondentes': row[7],
+            'tempo_avaliacao_ms': row[8],
+        }
