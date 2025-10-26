@@ -82,7 +82,7 @@ class TestBatchClassificationUS4:
             # Each classification would trigger an UPDATE
             update_count += 1
             mock_cursor.execute(
-                "UPDATE productos SET categoria = %s WHERE id = %s",
+                "UPDATE produtos_tabela SET categoria = %s WHERE id = %s",
                 ("TEST_CLASS", f"P_{i}")
             )
 
@@ -214,7 +214,7 @@ class TestBatchClassificationUS4:
 
         batches = []
         for offset in range(0, total_products, batch_size):
-            # Query: SELECT * FROM productos LIMIT batch_size OFFSET offset
+            # Query: SELECT * FROM produtos_tabela LIMIT batch_size OFFSET offset
             batch_count = min(batch_size, total_products - offset)
             batches.append({
                 "offset": offset,
