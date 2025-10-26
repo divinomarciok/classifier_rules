@@ -328,7 +328,7 @@ class CSVClassifier:
             cursor = self.db_connection.cursor()
 
             cursor.execute(
-                "UPDATE productos SET categoria = %s, data_classificacao = %s WHERE id = %s",
+                "UPDATE productos_tabela SET categoria = %s, data_classificacao = %s WHERE id = %s",
                 (classification, datetime.now(), product_id)
             )
 

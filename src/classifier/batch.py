@@ -156,7 +156,7 @@ class BatchClassifier:
             cursor = self.db_connection.cursor()
 
             # Build query for unclassified products
-            query = "SELECT * FROM productos WHERE categoria IS NULL"
+            query = "SELECT * FROM productos_tabela WHERE categoria IS NULL"
 
             if where_clause:
                 query += f" AND {where_clause}"
@@ -222,7 +222,7 @@ class BatchClassifier:
             cursor = self.db_connection.cursor()
 
             cursor.execute(
-                "UPDATE productos SET categoria = %s, data_classificacao = %s WHERE id = %s",
+                "UPDATE productos_tabela SET categoria = %s, data_classificacao = %s WHERE id = %s",
                 (classification, datetime.now(), product_id)
             )
 
@@ -249,10 +249,10 @@ class BatchClassifier:
             cursor = self.db_connection.cursor()
 
             # Count classified vs unclassified
-            cursor.execute("SELECT COUNT(*) FROM productos WHERE categoria IS NOT NULL")
+            cursor.execute("SELECT COUNT(*) FROM productos_tabela WHERE categoria IS NOT NULL")
             classified_count = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM productos WHERE categoria IS NULL")
+            cursor.execute("SELECT COUNT(*) FROM productos_tabela WHERE categoria IS NULL")
             unclassified_count = cursor.fetchone()[0]
 
             total_count = classified_count + unclassified_count
