@@ -70,7 +70,56 @@ def db_connection(test_db_config):
 
 
 @pytest.fixture(scope='function')
-def sample_rules(db_connection):
+def sample_categories(db_connection):
+    """Create sample categories for testing
+
+    Inserts 5 test categories into categorias table.
+    **MUST be called before sample_rules fixture** since rules have FK to categories.
+
+    Yields:
+        dict: Dictionary with category IDs indexed by name
+
+    Usage:
+        def test_rules_with_categories(db_connection, sample_categories, sample_rules):
+            assert sample_categories['electronics'] is not None
+            # Categories are now in database and rules reference them
+    """
+    cursor = db_connection.cursor()
+
+    # Insert sample categories
+    categories = {
+        'electronics': 'ELECTRONICS',
+        'cables': 'CABLES',
+        'small': 'SMALL ITEMS',
+        'bulk': 'BULK ITEMS',
+        'monitors': 'MONITORS & DISPLAYS',
+    }
+
+    inserted_categories = {}
+
+    for key, nome in categories.items():
+        cursor.execute("""
+            INSERT INTO categorias (nome, descricao, ativo)
+            VALUES (%s, %s, true)
+            RETURNING id
+        """, (nome, f'Test category: {nome}'))
+
+        category_id = cursor.fetchone()[0]
+        inserted_categories[key] = category_id
+        print(f"Inserted sample category '{key}' (nome={nome}) with ID {category_id}")
+
+    db_connection.commit()
+
+    yield inserted_categories
+
+    # Cleanup: Delete all sample categories after test
+    cursor.execute("DELETE FROM categorias")
+    db_connection.commit()
+    cursor.close()
+
+
+@pytest.fixture(scope='function')
+def sample_rules(db_connection, sample_categories):
     """Create sample rules for testing
 
     Inserts 5 test rules into regras_de_classificacao table:
@@ -80,48 +129,50 @@ def sample_rules(db_connection):
     4. Quantity-based rule for BULK items (quantity > 100)
     5. Combined criteria rule (keywords + NCM)
 
+    **Depends on sample_categories fixture** for categoria_id FK references.
+
     Yields:
         dict: Dictionary with rule IDs indexed by name
 
     Usage:
-        def test_rule_matching(db_connection, sample_rules):
+        def test_rule_matching(db_connection, sample_categories, sample_rules):
             assert sample_rules['electronics'] is not None
-            # Rules are now in database, ready to test
+            # Rules are now in database with proper categoria_id references
     """
     cursor = db_connection.cursor()
 
-    # Insert sample rules
+    # Insert sample rules using categoria_id from sample_categories
     rules = {
         'electronics': {
             'prioridade': 100,
             'nome': 'Laptop Rule',
             'criterio_palavras_chave': 'laptop,computer',
-            'resultado_classificacao': 'ELECTRONICS',
+            'categoria_id': sample_categories['electronics'],
         },
         'cables': {
             'prioridade': 50,
             'nome': 'Cable Rule',
             'criterio_ncm': '8544*',
-            'resultado_classificacao': 'CABLES',
+            'categoria_id': sample_categories['cables'],
         },
         'small_items': {
             'prioridade': 30,
             'nome': 'Small Items Rule',
             'criterio_tamanho_max': 1.0,
-            'resultado_classificacao': 'SMALL',
+            'categoria_id': sample_categories['small'],
         },
         'bulk_items': {
             'prioridade': 20,
             'nome': 'Bulk Items Rule',
             'criterio_quantidade_min': 100,
-            'resultado_classificacao': 'BULK',
+            'categoria_id': sample_categories['bulk'],
         },
         'combined': {
             'prioridade': 150,
             'nome': 'Combined Rule',
             'criterio_palavras_chave': 'monitor',
             'criterio_ncm': '8528*',
-            'resultado_classificacao': 'MONITORS',
+            'categoria_id': sample_categories['monitors'],
         },
     }
 
@@ -134,13 +185,13 @@ def sample_rules(db_connection):
                 criterio_palavras_chave, criterio_ncm,
                 criterio_tamanho_min, criterio_tamanho_max,
                 criterio_quantidade_min, criterio_quantidade_max,
-                resultado_classificacao
+                categoria_id
             ) VALUES (
                 %(prioridade)s, %(nome)s, true,
                 %(criterio_palavras_chave)s, %(criterio_ncm)s,
                 %(criterio_tamanho_min)s, %(criterio_tamanho_max)s,
                 %(criterio_quantidade_min)s, %(criterio_quantidade_max)s,
-                %(resultado_classificacao)s
+                %(categoria_id)s
             )
             RETURNING id
         """, {
@@ -152,12 +203,12 @@ def sample_rules(db_connection):
             'criterio_tamanho_max': rule_data.get('criterio_tamanho_max'),
             'criterio_quantidade_min': rule_data.get('criterio_quantidade_min'),
             'criterio_quantidade_max': rule_data.get('criterio_quantidade_max'),
-            'resultado_classificacao': rule_data.get('resultado_classificacao', 'UNKNOWN'),
+            'categoria_id': rule_data.get('categoria_id'),
         })
 
         rule_id = cursor.fetchone()[0]
         inserted_rules[key] = rule_id
-        print(f"Inserted sample rule '{key}' with ID {rule_id}")
+        print(f"Inserted sample rule '{key}' with ID {rule_id} and categoria_id {rule_data['categoria_id']}")
 
     db_connection.commit()
 
@@ -173,7 +224,7 @@ def sample_rules(db_connection):
 def cleanup(db_connection):
     """Clean up database before and after test
 
-    Clears audit logs and rules tables to ensure clean test state.
+    Clears audit logs, rules, and categories tables to ensure clean test state.
 
     Usage:
         def test_something(db_connection, cleanup):
@@ -183,17 +234,55 @@ def cleanup(db_connection):
     cursor = db_connection.cursor()
 
     # Clean before test
-    cursor.execute("TRUNCATE TABLE criterios_palavras_chave CASCADE")
-    cursor.execute("TRUNCATE TABLE auditoria_classificacao CASCADE")
-    cursor.execute("TRUNCATE TABLE regras_de_classificacao CASCADE")
+    try:
+        cursor.execute("TRUNCATE TABLE criterios_palavras_chave CASCADE")
+    except:
+        pass
+    try:
+        cursor.execute("TRUNCATE TABLE auditoria_classificacao CASCADE")
+    except:
+        pass
+    try:
+        cursor.execute("TRUNCATE TABLE regras_de_classificacao CASCADE")
+    except:
+        pass
+    try:
+        cursor.execute("TRUNCATE TABLE categorias CASCADE")
+    except:
+        pass
+    # Reset status_classificacao in products_tabela if it exists
+    try:
+        cursor.execute("UPDATE produtos_tabela SET status_classificacao = 'pending', categoria_id = NULL")
+    except:
+        pass
+
     db_connection.commit()
 
     yield  # Test runs here
 
     # Clean after test
-    cursor.execute("TRUNCATE TABLE criterios_palavras_chave CASCADE")
-    cursor.execute("TRUNCATE TABLE auditoria_classificacao CASCADE")
-    cursor.execute("TRUNCATE TABLE regras_de_classificacao CASCADE")
+    try:
+        cursor.execute("TRUNCATE TABLE criterios_palavras_chave CASCADE")
+    except:
+        pass
+    try:
+        cursor.execute("TRUNCATE TABLE auditoria_classificacao CASCADE")
+    except:
+        pass
+    try:
+        cursor.execute("TRUNCATE TABLE regras_de_classificacao CASCADE")
+    except:
+        pass
+    try:
+        cursor.execute("TRUNCATE TABLE categorias CASCADE")
+    except:
+        pass
+    # Reset status_classificacao in products_tabela if it exists
+    try:
+        cursor.execute("UPDATE produtos_tabela SET status_classificacao = 'pending', categoria_id = NULL")
+    except:
+        pass
+
     db_connection.commit()
 
     cursor.close()
