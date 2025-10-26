@@ -97,6 +97,7 @@ class BatchClassifier:
             for item in results:
                 if item['result'].success:
                     classification = item['result'].classification
+                    categoria_id = item['result'].categoria_id
 
                     # Check if this is a NO_MATCH result
                     if classification == 'NO_MATCH':
@@ -120,7 +121,8 @@ class BatchClassifier:
                         if update_db:
                             self._update_product_classification(
                                 item['product_id'],
-                                item['result'].classification
+                                categoria_id,
+                                classification
                             )
                 else:
                     no_match_count += 1
@@ -231,12 +233,13 @@ class BatchClassifier:
 
         return product
 
-    def _update_product_classification(self, product_id: str, classification: str) -> bool:
+    def _update_product_classification(self, product_id: str, categoria_id: int, classification_name: str) -> bool:
         """Update database with classification result
 
         Args:
             product_id: Product ID to update
-            classification: Classification result to store
+            categoria_id: Category ID to assign
+            classification_name: Category name for logging
 
         Returns:
             bool: True if update successful
@@ -245,14 +248,14 @@ class BatchClassifier:
             cursor = self.db_connection.cursor()
 
             cursor.execute(
-                "UPDATE produtos_tabela SET categoria = %s, data_classificacao = %s WHERE id = %s",
-                (classification, datetime.now(), product_id)
+                "UPDATE produtos_tabela SET categoria_id = %s, status_classificacao = %s, data_classificacao = %s WHERE id = %s",
+                (categoria_id, 'matched', datetime.now(), product_id)
             )
 
             self.db_connection.commit()
             cursor.close()
 
-            logger.debug(f"Updated product {product_id} with classification {classification}")
+            logger.debug(f"Updated product {product_id} with categoria_id={categoria_id} ({classification_name})")
             return True
 
         except Exception as e:

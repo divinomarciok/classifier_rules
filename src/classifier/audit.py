@@ -37,7 +37,8 @@ class AuditLog:
         product_data: Dict[str, Any],
         matched_criteria: List[str],
         classification_result: str,
-        evaluation_time_ms: int,
+        categoria_id: Optional[int] = None,
+        evaluation_time_ms: int = 0,
         user: str = 'system',
     ) -> int:
         """Record a classification decision to audit log
@@ -49,7 +50,8 @@ class AuditLog:
             rule_id: ID of rule that matched (or None if no match)
             product_data: Product data dict with id, description, ncm, etc
             matched_criteria: List of criterion names that matched
-            classification_result: The classification result
+            classification_result: The classification result (category name)
+            categoria_id: Category ID assigned (FK to categorias table)
             evaluation_time_ms: How long evaluation took
             user: User/system performing classification (default: 'system')
 
@@ -62,7 +64,7 @@ class AuditLog:
         Implementation Plan:
             1. Extract product info from product_data
             2. Format matched_criteria as JSON
-            3. Build INSERT statement
+            3. Build INSERT statement with categoria_id
             4. Execute INSERT
             5. Return inserted entry ID
         """
@@ -86,19 +88,21 @@ class AuditLog:
                     id_regra,
                     id_produto,
                     descricao_produto,
+                    categoria_id,
                     resultado_classificacao,
                     data_classificacao,
                     usuario,
                     criterios_correspondentes,
                     tempo_avaliacao_ms
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
                 RETURNING id
             """, (
                 rule_id,
                 product_id,
                 product_description,
+                categoria_id,
                 classification_result,
                 datetime.now(),
                 user,
@@ -112,7 +116,7 @@ class AuditLog:
 
             logger.info(
                 f"Audit log {audit_id}: rule={rule_id}, product={product_id}, "
-                f"result={classification_result}, user={user}"
+                f"category={classification_result} (id={categoria_id}), user={user}"
             )
 
             return audit_id
@@ -277,9 +281,10 @@ class AuditLog:
             'id_regra': row[1],
             'id_produto': row[2],
             'descricao_produto': row[3],
-            'resultado_classificacao': row[4],
-            'data_classificacao': row[5],
-            'usuario': row[6],
-            'criterios_correspondentes': row[7],
-            'tempo_avaliacao_ms': row[8],
+            'categoria_id': row[4] if len(row) > 4 else None,
+            'resultado_classificacao': row[5] if len(row) > 5 else row[4],
+            'data_classificacao': row[6] if len(row) > 6 else row[5],
+            'usuario': row[7] if len(row) > 7 else row[6],
+            'criterios_correspondentes': row[8] if len(row) > 8 else row[7],
+            'tempo_avaliacao_ms': row[9] if len(row) > 9 else row[8],
         }

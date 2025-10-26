@@ -10,6 +10,85 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 
+class Category:
+    """Represents a classification category from categorias table
+
+    Attributes:
+        id: Category unique identifier
+        nome: Category name
+        descricao: Category description
+        ativo: Whether category is active
+        data_criacao: When category was created
+        data_atualizacao: When category was last updated
+    """
+
+    def __init__(
+        self,
+        id: int,
+        nome: str,
+        descricao: Optional[str] = None,
+        ativo: bool = True,
+        data_criacao: Optional[datetime] = None,
+        data_atualizacao: Optional[datetime] = None,
+    ):
+        self.id = id
+        self.nome = nome
+        self.descricao = descricao
+        self.ativo = ativo
+        self.data_criacao = data_criacao or datetime.now()
+        self.data_atualizacao = data_atualizacao or datetime.now()
+
+    @classmethod
+    def from_db_row(cls, row: tuple) -> 'Category':
+        """Construct Category from database tuple
+
+        Args:
+            row: Database row from categorias table
+
+        Returns:
+            Category: Constructed Category object
+        """
+        return cls(
+            id=row[0],
+            nome=row[1],
+            descricao=row[2] if len(row) > 2 else None,
+            ativo=row[3] if len(row) > 3 else True,
+            data_criacao=row[4] if len(row) > 4 else None,
+            data_atualizacao=row[5] if len(row) > 5 else None,
+        )
+
+    def is_active(self) -> bool:
+        """Check if category is active
+
+        Returns:
+            bool: True if category is active (ativo=True), False otherwise
+        """
+        return self.ativo
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert category to dictionary
+
+        Returns:
+            dict: Category data as dictionary
+        """
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'descricao': self.descricao,
+            'ativo': self.ativo,
+            'data_criacao': self.data_criacao,
+            'data_atualizacao': self.data_atualizacao,
+        }
+
+    def __repr__(self) -> str:
+        return f"Category(id={self.id}, nome={self.nome}, ativo={self.ativo})"
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Category):
+            return False
+        return self.id == other.id
+
+
 class Rule:
     """Represents a classification rule from regras_de_classificacao table
 
@@ -19,7 +98,7 @@ class Rule:
         nome: Rule name
         ativo: Whether rule is active
         criterio_*: Various matching criteria (keywords, NCM, sizes, quantities)
-        resultado_classificacao: Classification result if rule matches
+        categoria_id: Foreign key to categorias table (result category)
         data_criacao: When rule was created
         data_atualizacao: When rule was last updated
     """
@@ -30,7 +109,7 @@ class Rule:
         prioridade: int,
         nome: str,
         ativo: bool,
-        resultado_classificacao: str,
+        categoria_id: int,
         criterio_palavras_chave: Optional[str] = None,
         criterio_ncm: Optional[str] = None,
         criterio_tamanho_min: Optional[float] = None,
@@ -52,7 +131,7 @@ class Rule:
         self.criterio_quantidade_min = criterio_quantidade_min
         self.criterio_quantidade_max = criterio_quantidade_max
         self.criterio_categoria = criterio_categoria
-        self.resultado_classificacao = resultado_classificacao
+        self.categoria_id = categoria_id
         self.data_criacao = data_criacao or datetime.now()
         self.data_atualizacao = data_atualizacao or datetime.now()
 
@@ -78,7 +157,7 @@ class Rule:
             criterio_quantidade_min=row[8],
             criterio_quantidade_max=row[9],
             criterio_categoria=row[10],
-            resultado_classificacao=row[11],
+            categoria_id=row[11],
             data_criacao=row[12],
             data_atualizacao=row[13],
         )
@@ -112,7 +191,9 @@ class Product:
         ncm: NCM code
         size: Product size (optional)
         quantity: Product quantity (optional)
-        category: Category (optional, filled by classifier)
+        category: Category (optional, filled by classifier - deprecated)
+        categoria_id: Category ID (optional, filled by classifier)
+        status_classificacao: Classification status (pending, matched, no_match)
         other_fields: Any other product attributes passed via kwargs
     """
 
@@ -124,6 +205,8 @@ class Product:
         size: Optional[float] = None,
         quantity: Optional[int] = None,
         category: Optional[str] = None,
+        categoria_id: Optional[int] = None,
+        status_classificacao: Optional[str] = None,
         **kwargs
     ):
         self.id = id
@@ -131,7 +214,9 @@ class Product:
         self.ncm = ncm
         self.size = size
         self.quantity = quantity
-        self.category = category
+        self.category = category  # Backward compatibility
+        self.categoria_id = categoria_id
+        self.status_classificacao = status_classificacao or 'pending'
         self._extra_fields = kwargs
 
     def get_field(self, field_name: str) -> Any:
@@ -169,6 +254,8 @@ class Product:
             'size': self.size,
             'quantity': self.quantity,
             'category': self.category,
+            'categoria_id': self.categoria_id,
+            'status_classificacao': self.status_classificacao,
         }
         data.update(self._extra_fields)
         return data
@@ -181,7 +268,8 @@ class ClassificationResult:
     """Result of a classification evaluation
 
     Attributes:
-        classification: Classification code/result
+        classification: Classification code/result (category name)
+        categoria_id: Category ID from categorias table
         rule_id: ID of rule that matched (or None if no match)
         rule_name: Name of rule that matched
         priority: Priority of matched rule
@@ -194,6 +282,7 @@ class ClassificationResult:
     def __init__(
         self,
         classification: str,
+        categoria_id: Optional[int] = None,
         rule_id: Optional[int] = None,
         rule_name: Optional[str] = None,
         priority: Optional[int] = None,
@@ -203,6 +292,7 @@ class ClassificationResult:
         message: str = '',
     ):
         self.classification = classification
+        self.categoria_id = categoria_id
         self.rule_id = rule_id
         self.rule_name = rule_name
         self.priority = priority
@@ -219,6 +309,7 @@ class ClassificationResult:
         """
         return {
             'classification': self.classification,
+            'categoria_id': self.categoria_id,
             'rule_id': self.rule_id,
             'rule_name': self.rule_name,
             'priority': self.priority,
@@ -242,7 +333,8 @@ class AuditEntry:
         id_produto: Product ID that was classified
         descricao_produto: Product description
         ncm_produto: Product NCM code
-        resultado_classificacao: Classification result
+        categoria_id: Category ID assigned (FK to categorias)
+        resultado_classificacao: Classification result (category name)
         criterios_combinados: Which criteria matched (JSON)
         data_classificacao: When classification occurred
         tempo_avaliacao_ms: Evaluation time
@@ -256,6 +348,7 @@ class AuditEntry:
         descricao_produto: Optional[str],
         ncm_produto: Optional[str],
         resultado_classificacao: str,
+        categoria_id: Optional[int] = None,
         criterios_combinados: Optional[str] = None,
         data_classificacao: Optional[datetime] = None,
         tempo_avaliacao_ms: int = 0,
@@ -267,6 +360,7 @@ class AuditEntry:
         self.id_produto = id_produto
         self.descricao_produto = descricao_produto
         self.ncm_produto = ncm_produto
+        self.categoria_id = categoria_id
         self.resultado_classificacao = resultado_classificacao
         self.criterios_combinados = criterios_combinados
         self.data_classificacao = data_classificacao or datetime.now()
@@ -285,6 +379,7 @@ class AuditEntry:
             'id_produto': self.id_produto,
             'descricao_produto': self.descricao_produto,
             'ncm_produto': self.ncm_produto,
+            'categoria_id': self.categoria_id,
             'resultado_classificacao': self.resultado_classificacao,
             'criterios_combinados': self.criterios_combinados,
             'data_classificacao': self.data_classificacao,

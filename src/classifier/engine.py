@@ -10,10 +10,11 @@ import time
 import logging
 
 from classifier import ProductError, DatabaseError, EvaluationError
-from classifier.models import Product, ClassificationResult, Rule
+from classifier.models import Product, ClassificationResult, Rule, Category
 from classifier.matcher import Matcher
 from classifier.evaluator import Evaluator
 from classifier.utils import get_db_connection
+from classifier.category_service import CategoryService
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class RuleEngine:
         self.db_connection = db_connection
         self.cache_rules = cache_rules
         self._rules_cache = None
+        self.category_service = CategoryService(db_connection) if db_connection else None
         self.logger = logging.getLogger(__name__)
 
     def _load_rules(self) -> list:
@@ -66,7 +68,7 @@ class RuleEngine:
                     criterio_tamanho_min, criterio_tamanho_max,
                     criterio_quantidade_min, criterio_quantidade_max,
                     criterio_categoria,
-                    resultado_classificacao,
+                    categoria_id,
                     data_criacao, data_atualizacao
                 FROM regras_de_classificacao
                 WHERE ativo = TRUE
@@ -211,9 +213,20 @@ class RuleEngine:
                 logger.error(f"Error selecting winner: {e}")
                 raise
 
-            # 6. Build result
+            # 6. Get category name from categoria_id
+            category_name = 'UNKNOWN'
+            if self.category_service and winner.categoria_id:
+                category = self.category_service.get_category_by_id(winner.categoria_id)
+                if category:
+                    category_name = category.nome
+                else:
+                    logger.warning(f"Category {winner.categoria_id} not found in database")
+                    category_name = f'CATEGORY_{winner.categoria_id}'
+
+            # 7. Build result
             result = ClassificationResult(
-                classification=winner.resultado_classificacao,
+                classification=category_name,
+                categoria_id=winner.categoria_id,
                 rule_id=winner.id,
                 rule_name=winner.nome,
                 priority=winner.prioridade,
@@ -223,9 +236,9 @@ class RuleEngine:
                 message=f'Matched rule {winner.id} ({winner.nome})'
             )
 
-            logger.info(f"Product {product.id} classified as {result.classification} by rule {winner.id}")
+            logger.info(f"Product {product.id} classified as {result.classification} (id={result.categoria_id}) by rule {winner.id}")
 
-            # 7. Log to audit table (FR-007) - delegated to caller or middleware
+            # 8. Log to audit table (FR-007) - delegated to caller or middleware
             # This is typically done at a higher level, but we can record here if needed
 
             return result
