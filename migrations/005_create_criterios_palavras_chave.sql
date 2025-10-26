@@ -1,6 +1,8 @@
--- Migration 003: Create criterios_palavras_chave (Keywords Index) table
+-- Migration 005: Create criterios_palavras_chave (Keywords Index) table
+-- DEPENDS ON: 003_create_regras_de_classificacao.sql (FK to regras_de_classificacao)
 -- Purpose: Optional normalized keyword storage for advanced keyword matching
--- Created: 2025-10-25
+-- Date: 2025-10-26
+-- Status: Up
 
 CREATE TABLE IF NOT EXISTS criterios_palavras_chave (
     id SERIAL PRIMARY KEY,

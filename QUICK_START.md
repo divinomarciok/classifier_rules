@@ -1,80 +1,80 @@
-# Quick Start Guide - Classifier v2
+# Guia de Início Rápido - Classifier v2
 
-The product classification system is now fully implemented and ready to use. This guide walks you through getting started in 5 minutes.
+O sistema de classificação de produtos está totalmente implementado e pronto para uso. Este guia o orienta a começar em 5 minutos.
 
-## 1. Prerequisites Check (1 minute)
+## 1. Verificação de Pré-requisitos (1 minuto)
 
-Your system needs:
-- ✅ Python 3.8+ with virtual environment activated
-- ✅ PostgreSQL database with `produtos_tabela` table
-- ✅ Classifier package installed (`pip install -e .`)
+Seu sistema precisa de:
+- ✅ Python 3.8+ com ambiente virtual ativado
+- ✅ Banco de dados PostgreSQL com tabela `produtos_tabela`
+- ✅ Pacote Classifier instalado (`pip install -e .`)
 
-**Verify environment:**
+**Verificar ambiente:**
 ```bash
 source /tmp/classifier_venv/bin/activate
 cd /home/divinopc/testes/projects/classifier_regras
-python3 -c "import classifier; print('✅ Classifier installed')"
+python3 -c "import classifier; print('✅ Classifier instalado')"
 ```
 
-## 2. Verify Database (1 minute)
+## 2. Verificar Banco de Dados (1 minuto)
 
-Your database must have these three Portuguese tables:
+Seu banco de dados deve ter estas três tabelas em português:
 
 ```bash
-# List tables in your database
+# Listar tabelas no seu banco de dados
 psql -U postgres -d classifier -c "\dt"
 ```
 
-**Must see:**
-- `produtos_tabela` - Products to classify
-- `regras_de_classificacao` - Classification rules
-- `auditoria_classificacao` - Audit trail
+**Deve ver:**
+- `produtos_tabela` - Produtos a classificar
+- `regras_de_classificacao` - Regras de classificação
+- `auditoria_classificacao` - Trilha de auditoria
 
-**If tables are missing**, see DATABASE_SETUP.md for creation scripts.
+**Se as tabelas estão faltando**, veja DATABASE_SETUP.md para scripts de criação.
 
-## 3. Test Connection (1 minute)
+## 3. Testar Conexão (1 minuto)
 
 ```bash
-# Check database statistics
+# Verificar estatísticas do banco de dados
 classify-batch --stats
 ```
 
-**Should output:**
+**Deve exibir:**
 ```
-BATCH CLASSIFICATION STATISTICS
+ESTATÍSTICAS DE CLASSIFICAÇÃO EM LOTE
 ============================================================
-Total Products:       X products
-Classified:           X products
-Unclassified:        X products
-Classification Rate:  X%
+Total de Produtos:       X produtos
+Classificados:           X produtos
+Não Classificados:       X produtos
+Taxa de Classificação:   X%
 ```
 
-If you see `relation 'produtos_tabela' does not exist` error, your database table naming is incorrect (see VERIFY_DATABASE.md).
+Se você vir erro `relation 'produtos_tabela' does not exist`, o nome da tabela do banco de dados está incorreto (veja VERIFY_DATABASE.md).
 
-## 4. Classify Products (2 minutes)
+## 4. Classificar Produtos (2 minutos)
 
-### Option A: Batch from Database
+### Opção A: Lote do Banco de Dados
 
 ```bash
-# Classify next 10 unclassified products
+# Classificar próximos 10 produtos não classificados
 classify-batch --limit 10
 
-# Or with dry-run to preview what would happen
+# Ou com pré-visualização sem atualizar BD
 classify-batch --limit 10 --dry-run
 ```
 
-### Option B: Import from CSV
+### Opção B: Importar de CSV
 
 ```bash
-# Process CSV file
+# Processar arquivo CSV
 classify-csv samples/products_basic.csv
 
-# Output file: samples/products_basic_classified.csv
-# Check results
+# Arquivo de saída: samples/products_basic_classified.csv
+# Verificar resultados
 head samples/products_basic_classified.csv
 ```
 
-### Option C: Python API
+### Opção C: API Python
 
 ```python
 from classifier.engine import RuleEngine
@@ -83,24 +83,24 @@ from classifier.utils import get_db_connection
 db = get_db_connection()
 engine = RuleEngine(db)
 
-# Classify single product
+# Classificar produto único
 result = engine.evaluate({
     'id': 'PROD_001',
     'description': 'laptop dell',
     'ncm': '84713090'
 })
 
-print(f"Classification: {result.classification}")
-print(f"Matched: {result.success}")
+print(f"Classificação: {result.classification}")
+print(f"Correspondeu: {result.success}")
 ```
 
-## 5. Monitor Results
+## 5. Monitorar Resultados
 
 ```bash
-# View overall statistics
+# Ver estatísticas gerais
 classify-batch --stats
 
-# See recent classifications
+# Ver classificações recentes
 psql -U postgres -d classifier -c "
   SELECT id_produto, resultado_classificacao, data_classificacao
   FROM auditoria_classificacao
@@ -108,7 +108,7 @@ psql -U postgres -d classifier -c "
   LIMIT 10;
 "
 
-# Find products that couldn't be classified
+# Encontrar produtos que não puderam ser classificados
 psql -U postgres -d classifier -c "
   SELECT id, description
   FROM produtos_tabela
@@ -117,38 +117,38 @@ psql -U postgres -d classifier -c "
 "
 ```
 
-## 6. Next Steps
+## 6. Próximos Passos
 
-- **See detailed instructions**: HOW_TO_RUN.md
-- **Test the system**: TESTING_GUIDE.md
-- **Understand database**: DATABASE_SETUP.md
-- **Verify setup**: VERIFY_DATABASE.md
-- **View full project**: PROJECT_SUMMARY.md
+- **Ver instruções detalhadas**: HOW_TO_RUN.md
+- **Testar o sistema**: TESTING_GUIDE.md
+- **Entender banco de dados**: DATABASE_SETUP.md
+- **Verificar configuração**: VERIFY_DATABASE.md
+- **Ver projeto completo**: PROJECT_SUMMARY.md
 
 ---
 
-## Common Issues & Quick Fixes
+## Problemas Comuns & Correções Rápidas
 
 ### ❌ "relation 'productos_tabela' does not exist"
-**Fix**: Your database table name is wrong. Check VERIFY_DATABASE.md for the correct Portuguese name: `produtos_tabela`
+**Correção**: O nome da tabela do banco de dados está errado. Verifique VERIFY_DATABASE.md para o nome correto em português: `produtos_tabela`
 
 ### ❌ "No such file or directory"
-**Fix**: Make sure you're in the correct directory:
+**Correção**: Certifique-se de estar no diretório correto:
 ```bash
 cd /home/divinopc/testes/projects/classifier_regras
 source /tmp/classifier_venv/bin/activate
 ```
 
 ### ❌ "could not connect to database"
-**Fix**: PostgreSQL must be running:
+**Correção**: PostgreSQL deve estar em execução:
 ```bash
 sudo systemctl start postgresql
-# or
+# ou
 pg_ctl -D /usr/local/var/postgres start
 ```
 
 ### ❌ "No products matched"
-**Fix**: Check that rules exist with active criteria:
+**Correção**: Verifique que as regras existem com critérios ativos:
 ```bash
 psql -U postgres -d classifier -c "
   SELECT id, nome, criterio_palavras_chave, ativo
@@ -158,131 +158,130 @@ psql -U postgres -d classifier -c "
 "
 ```
 
-If empty, create test rules (see DATABASE_SETUP.md).
+Se vazio, crie regras de teste (veja DATABASE_SETUP.md).
 
 ---
 
-## Architecture Overview
+## Visão Geral da Arquitetura
 
-The classifier uses a **data-driven rule engine**:
+O classificador usa um **motor de regras orientado a dados**:
 
-1. **Rules in Database** (`regras_de_classificacao`)
-   - Rules are stored as database records, not hardcoded
-   - Each rule has: name, priority, criteria, result, status
-   - Priority determines rule selection when multiple rules match
+1. **Regras no Banco de Dados** (`regras_de_classificacao`)
+   - Regras são armazenadas como registros do banco de dados, não codificadas
+   - Cada regra tem: nome, prioridade, critérios, resultado, status
+   - Prioridade determina seleção de regra quando múltiplas regras correspondem
 
-2. **Flexible Matching** (5 criteria types)
-   - Keyword matching (substring search in description)
-   - NCM pattern matching (wildcard patterns)
-   - Size range matching (min/max)
-   - Quantity range matching (min/max)
-   - Category exact matching
+2. **Correspondência Flexível** (5 tipos de critérios)
+   - Correspondência de palavras-chave (busca de substring em descrição)
+   - Correspondência de padrão NCM (padrões com caractere coringa)
+   - Correspondência de intervalo de tamanho (mín/máx)
+   - Correspondência de intervalo de quantidade (mín/máx)
+   - Correspondência exata de categoria
 
-3. **Deterministic Selection**
-   - Higher priority rules win
-   - Same priority: older rule wins (FIFO)
-   - All decisions logged to `auditoria_classificacao`
+3. **Seleção Determinística**
+   - Regras de prioridade mais alta vencem
+   - Mesma prioridade: regra mais antiga vence (FIFO)
+   - Todas as decisões registradas em `auditoria_classificacao`
 
-4. **Audit Trail** (Immutable)
-   - Every classification recorded with timestamp
-   - Can trace which rule made each decision
-   - Complete history for compliance
+4. **Trilha de Auditoria** (Imutável)
+   - Cada classificação registrada com timestamp
+   - Pode rastrear qual regra fez cada decisão
+   - Histórico completo para conformidade
 
-## Command Reference
+## Referência de Comandos
 
-### Batch Classification
+### Classificação em Lote
 ```bash
-# Classify 500 products
+# Classificar 500 produtos
 classify-batch
 
-# Classify with custom limit
+# Classificar com limite personalizado
 classify-batch --limit 100
 
-# Dry-run (preview without updating DB)
+# Pré-visualização sem atualizar BD
 classify-batch --limit 10 --dry-run
 
-# Show statistics only
+# Mostrar apenas estatísticas
 classify-batch --stats
 
-# JSON output
+# Saída JSON
 classify-batch --limit 10 --json
 
-# Filter specific products (e.g., NCM starting with 84)
+# Filtrar produtos específicos (ex: NCM começando com 84)
 classify-batch --where "ncm LIKE '84%'" --limit 50
 
-# Verbose logging
+# Log verboso
 classify-batch --limit 10 --verbose
 ```
 
-### CSV Classification
+### Classificação CSV
 ```bash
-# Process CSV file
-classify-csv input.csv
+# Processar arquivo CSV
+classify-csv entrada.csv
 
-# Specify output file
-classify-csv input.csv --output results.csv
+# Especificar arquivo de saída
+classify-csv entrada.csv --output resultados.csv
 
-# Validate CSV before processing
-classify-csv input.csv --validate
+# Validar CSV antes de processar
+classify-csv entrada.csv --validate
 
-# Update database with results
-classify-csv input.csv --update-db
+# Atualizar banco de dados com resultados
+classify-csv entrada.csv --update-db
 
-# Skip already classified rows
-classify-csv input.csv --skip-classified
+# Pular linhas já classificadas
+classify-csv entrada.csv --skip-classified
 
-# Custom CSV format (semicolon delimiter, Latin-1 encoding)
-classify-csv input.csv --delimiter ";" --encoding "latin-1"
+# Formato CSV personalizado (delimitador ponto-e-vírgula, codificação Latin-1)
+classify-csv entrada.csv --delimiter ";" --encoding "latin-1"
 
-# Process in batches of 100 rows
-classify-csv input.csv --batch-size 100
+# Processar em lotes de 100 linhas
+classify-csv entrada.csv --batch-size 100
 
-# JSON output
-classify-csv input.csv --json
+# Saída JSON
+classify-csv entrada.csv --json
 
-# Dry-run
-classify-csv input.csv --dry-run
+# Pré-visualização
+classify-csv entrada.csv --dry-run
 ```
 
-## Key Files
+## Arquivos Principais
 
-| File | Purpose |
+| Arquivo | Propósito |
 |------|---------|
-| `QUICK_START.md` | This guide (5-minute setup) |
-| `HOW_TO_RUN.md` | Detailed execution methods |
-| `TESTING_GUIDE.md` | Comprehensive testing |
-| `DATABASE_SETUP.md` | Database configuration |
-| `VERIFY_DATABASE.md` | Database verification |
-| `PROJECT_SUMMARY.md` | Full project overview |
-| `src/classifier/engine.py` | Core rule engine |
-| `src/classifier/batch.py` | Batch classification service |
-| `src/classifier/csv_classifier.py` | CSV processing service |
-| `src/classifier/cli/` | Command-line interfaces |
+| `QUICK_START.md` | Este guia (configuração de 5 minutos) |
+| `HOW_TO_RUN.md` | Métodos de execução detalhados |
+| `TESTING_GUIDE.md` | Testes abrangentes |
+| `DATABASE_SETUP.md` | Configuração do banco de dados |
+| `VERIFY_DATABASE.md` | Verificação do banco de dados |
+| `PROJECT_SUMMARY.md` | Visão geral completa do projeto |
+| `src/classifier/engine.py` | Motor de regras principal |
+| `src/classifier/batch.py` | Serviço de classificação em lote |
+| `src/classifier/csv_classifier.py` | Serviço de processamento CSV |
+| `src/classifier/cli/` | Interfaces de linha de comando |
 
-## Testing
+## Testes
 
-The system includes 277 automated tests:
-- 150+ unit tests (components in isolation)
-- 80+ integration tests (workflows)
-- 35+ contract tests (API specifications)
-- 12 CLI tests (command-line interfaces)
+O sistema inclui 277 testes automatizados:
+- 150+ testes unitários (componentes isolados)
+- 80+ testes de integração (workflows)
+- 35+ testes de contrato (especificações de API)
+- 12 testes CLI (interfaces de linha de comando)
 
-Run tests:
+Executar testes:
 ```bash
-# Quick test (30 seconds)
+# Teste rápido (30 segundos)
 pytest tests/unit/ tests/cli/ -q
 
-# Full test (without database)
+# Teste completo (sem banco de dados)
 pytest tests/ -q
 
-# With coverage report
+# Com relatório de cobertura
 pytest tests/ --cov=src/classifier
 ```
 
 ---
 
-**Status**: ✅ System fully implemented and ready
-**Latest Fix**: Database table names corrected to Portuguese (`produtos_tabela`)
-**Documentation**: Complete guides provided for all use cases
-**Tests**: 189 unit/CLI tests passing ✅
-
+**Status**: ✅ Sistema totalmente implementado e pronto
+**Última Correção**: Nomes de tabelas do banco de dados corrigidos para português (`produtos_tabela`)
+**Documentação**: Guias completos fornecidos para todos os casos de uso
+**Testes**: 189 testes unitários/CLI passando ✅

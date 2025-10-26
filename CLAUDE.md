@@ -148,19 +148,45 @@ echo "DB_PASSWORD=sua_senha_aqui" >> .env
 
 #### 2. Tabelas Necessárias
 
-O projeto requer as seguintes estruturas no banco:
+O projeto requer as seguintes estruturas no banco (na ordem de criação):
+
+**Tabela `categorias` (Categorias - Tabela de Referência) — CRIAR PRIMEIRA**
+```sql
+CREATE TABLE categorias (
+    id SERIAL PRIMARY KEY,                          -- ID único da categoria
+    nome VARCHAR(255) NOT NULL UNIQUE,              -- Nome da categoria (ex: ELETRÔNICOS, CABOS)
+    descricao TEXT,                                 -- Descrição detalhada
+    ativo BOOLEAN DEFAULT TRUE,                     -- Se a categoria está em uso
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_categorias_ativo_nome ON categorias(ativo, nome);
+```
+
+**Exemplos de categorias base para seed:**
+```sql
+INSERT INTO categorias (nome, descricao, ativo) VALUES
+    ('ELETRÔNICOS', 'Produtos eletrônicos em geral', TRUE),
+    ('CABOS', 'Cabos e conectores', TRUE),
+    ('ACESSÓRIOS', 'Acessórios diversos', TRUE),
+    ('PERIFÉRICOS', 'Periféricos de computador', TRUE),
+    ('COMPONENTES', 'Componentes internos', TRUE);
+```
 
 **Tabela `produtos_tabela` (Produtos)**
 ```sql
 CREATE TABLE produtos_tabela (
-    id VARCHAR PRIMARY KEY,           -- Código de barras (renomeado de 'codbar')
-    descricao VARCHAR(255),           -- Descrição do produto
-    ncm VARCHAR(8),                   -- NCM do produto
-    categoria VARCHAR(255),           -- Categoria atribuída (NULL inicialmente)
-    data_classificacao TIMESTAMP,     -- Data da classificação
+    id VARCHAR PRIMARY KEY,                         -- Código de barras (renomeado de 'codbar')
+    descricao VARCHAR(255),                         -- Descrição do produto
+    ncm VARCHAR(8),                                 -- NCM do produto
+    categoria_id INTEGER REFERENCES categorias(id), -- Categoria atribuída (FK, NULL inicialmente)
+    data_classificacao TIMESTAMP,                   -- Data da classificação
     -- Colunas adicionais opcionais:
     -- desc_sem_acento, desc_upper, desc_lower, foto, main_category, etc.
 );
+
+CREATE INDEX idx_produtos_categoria_id ON produtos_tabela(categoria_id);
 ```
 
 **Tabela `regras_de_classificacao` (Regras de Classificação)**
@@ -177,13 +203,14 @@ CREATE TABLE regras_de_classificacao (
     criterio_quantidade_min INTEGER,           -- Quantidade mínima
     criterio_quantidade_max INTEGER,           -- Quantidade máxima
     criterio_categoria VARCHAR(255),           -- Categoria a filtrar
-    resultado_classificacao VARCHAR(255) NOT NULL,  -- Categoria resultado
+    categoria_id INTEGER NOT NULL REFERENCES categorias(id) ON DELETE RESTRICT ON UPDATE CASCADE,  -- Categoria resultado (FK)
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_prioridade ON regras_de_classificacao(prioridade DESC);
 CREATE INDEX idx_ativa ON regras_de_classificacao(ativo);
+CREATE INDEX idx_categoria_id ON regras_de_classificacao(categoria_id);
 ```
 
 #### 3. Instalação de Dependências
@@ -378,18 +405,81 @@ python3 -c "import classifier; print('OK')"
 ```bash
 # 1. Verificar regras ativas
 psql -U postgres -h localhost -d market_v1 -c "
-SELECT id, nome, ativo, prioridade FROM regras_de_classificacao WHERE ativo = TRUE;
+SELECT r.id, r.nome, r.ativo, r.prioridade, c.nome as categoria
+FROM regras_de_classificacao r
+LEFT JOIN categorias c ON r.categoria_id = c.id
+WHERE r.ativo = TRUE;
 "
 
-# 2. Se não houver regras, inserir algumas de teste
+# 2. Se não houver regras, inserir algumas de teste (DEPOIS de inserir categorias)
 psql -U postgres -h localhost -d market_v1 -c "
-INSERT INTO regras_de_classificacao (nome, ativo, prioridade, criterio_palavras_chave, resultado_classificacao)
-VALUES ('Test Rule', TRUE, 1, 'laptop', 'ELETRÔNICOS');
+-- Primeiro inserir uma categoria (se não existir)
+INSERT INTO categorias (nome, descricao, ativo) VALUES ('ELETRÔNICOS', 'Eletrônicos em geral', TRUE)
+ON CONFLICT (nome) DO NOTHING;
+
+-- Depois inserir a regra
+INSERT INTO regras_de_classificacao (nome, ativo, prioridade, criterio_palavras_chave, categoria_id)
+SELECT 'Test Rule', TRUE, 1, 'laptop', id FROM categorias WHERE nome = 'ELETRÔNICOS';
 "
 
 # 3. Verificar descrições dos produtos para correspondência
 psql -U postgres -h localhost -d market_v1 -c "
 SELECT id, descricao FROM produtos_tabela LIMIT 5;
+"
+```
+
+### Erro: "violates foreign key constraint \"regras_de_classificacao_categoria_id_fkey\""
+
+**Causa:** Tentativa de inserir uma regra com `categoria_id` que não existe na tabela `categorias`.
+
+**Solução:**
+
+```bash
+# 1. Verificar categorias disponíveis
+psql -U postgres -h localhost -d market_v1 -c "
+SELECT id, nome FROM categorias WHERE ativo = TRUE;
+"
+
+# 2. Se não existirem categorias, criar as padrão
+psql -U postgres -h localhost -d market_v1 -c "
+INSERT INTO categorias (nome, descricao, ativo) VALUES
+('ELETRÔNICOS', 'Produtos eletrônicos em geral', TRUE),
+('CABOS', 'Cabos e conectores', TRUE),
+('ACESSÓRIOS', 'Acessórios diversos', TRUE),
+('PERIFÉRICOS', 'Periféricos de computador', TRUE),
+('COMPONENTES', 'Componentes internos', TRUE);
+"
+
+# 3. Usar um categoria_id válido ao inserir regras
+psql -U postgres -h localhost -d market_v1 -c "
+INSERT INTO regras_de_classificacao (nome, ativo, prioridade, criterio_palavras_chave, categoria_id)
+VALUES ('Rule Name', TRUE, 1, 'keyword', 1);  -- categoria_id=1 deve existir
+"
+```
+
+### Erro: "cannot delete or update category record because it is referenced by regras_de_classificacao"
+
+**Causa:** Tentativa de deletar uma categoria que ainda está sendo usada por regras (ON DELETE RESTRICT).
+
+**Solução:**
+
+```bash
+# 1. Verificar quais regras usam a categoria
+psql -U postgres -h localhost -d market_v1 -c "
+SELECT r.id, r.nome, c.nome as categoria FROM regras_de_classificacao r
+JOIN categorias c ON r.categoria_id = c.id
+WHERE r.categoria_id = 1;  -- substitua 1 pelo ID da categoria
+"
+
+# 2. Opção A: Desativar a categoria ao invés de deletar (recomendado)
+psql -U postgres -h localhost -d market_v1 -c "
+UPDATE categorias SET ativo = FALSE WHERE id = 1;
+"
+
+# 3. Opção B: Atualizar as regras para usar outra categoria, depois deletar
+psql -U postgres -h localhost -d market_v1 -c "
+UPDATE regras_de_classificacao SET categoria_id = 2 WHERE categoria_id = 1;
+DELETE FROM categorias WHERE id = 1;
 "
 ```
 

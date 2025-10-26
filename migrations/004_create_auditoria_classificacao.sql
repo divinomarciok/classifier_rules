@@ -1,6 +1,8 @@
--- Migration 002: Create auditoria_classificacao (Audit Log) table
+-- Migration 004: Create auditoria_classificacao (Audit Log) table
+-- DEPENDS ON: 003_create_regras_de_classificacao.sql (FK to regras_de_classificacao)
 -- Purpose: Track every classification decision for complete auditability
--- Created: 2025-10-25
+-- Date: 2025-10-26
+-- Status: Up
 
 CREATE TABLE IF NOT EXISTS auditoria_classificacao (
     id SERIAL PRIMARY KEY,

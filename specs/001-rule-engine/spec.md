@@ -178,6 +178,8 @@ A user can import products from a CSV file, classify them using the rule engine,
 ### Functional Requirements
 
 - **FR-001**: System MUST read classification rules from the `regras_de_classificacao` database table
+- **FR-001a**: System MUST validate all rule category results against `categorias` table (foreign key integrity)
+- **FR-001b**: System MUST prevent invalid category assignments via database FK constraints (ON DELETE RESTRICT, ON UPDATE CASCADE)
 - **FR-002**: System MUST evaluate all criteria fields in a rule (keywords, NCM patterns, size, quantity, etc.) against incoming product attributes
 - **FR-003**: System MUST apply only active rules (where status indicates rule is enabled)
 - **FR-004**: System MUST return the classification from the highest-priority matching rule when multiple rules match
@@ -198,17 +200,22 @@ A user can import products from a CSV file, classify them using the rule engine,
 
 ### Key Entities
 
+- **Category** (`categorias` table): A product classification category
+  - Attributes: id (SERIAL PRIMARY KEY), name (unique), description, active status, created_at, updated_at
+  - Purpose: Centralized reference table for all valid classification categories
+  - Relationships: Referenced by Rules and Products via foreign keys
+
 - **Product**: The item being classified
-  - Attributes: description, NCM code, size, quantity, category, other attributes as defined in incoming requests
+  - Attributes: id, description, NCM code, size, quantity, category_id (FK to categorias), other attributes as defined in incoming requests
 
 - **Rule** (`regras_de_classificacao` table): A classification rule with criteria, priority, and result
-  - Fields: ID, priority (numeric), active status, rule criteria (keywords, NCM patterns, size range, quantity range, etc.), classification result, created_at, updated_at
+  - Fields: ID, priority (numeric), active status, rule criteria (keywords, NCM patterns, size range, quantity range, etc.), category_id (FK to categorias), created_at, updated_at
 
 - **Classification Result**: The outcome of a rule evaluation
-  - Attributes: classification code, category, confidence level, or other result fields per business requirements
+  - Attributes: category_id (from categorias table), category name, confidence level, or other result fields per business requirements
 
 - **Audit Log**: Record of rule application for traceability
-  - Fields: rule_id, product_id/description, timestamp, matched_criteria, resulting_classification
+  - Fields: rule_id, product_id/description, timestamp, matched_criteria, resulting_category_id, usuario_sistema
 
 ## Success Criteria *(mandatory)*
 

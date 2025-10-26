@@ -1,8 +1,28 @@
 # Migration Rollback Procedures
 
-**Last Updated**: 2025-10-25
+**Last Updated**: 2025-10-26
+**Current Migrations**: 002_create_categorias, 003_create_regras_de_classificacao, 004_create_auditoria_classificacao, 005_create_criterios_palavras_chave
 
 This document provides instructions for rolling back database migrations in case of errors or need to revert to a previous state.
+
+## ⚠️ Critical: New categorias Table
+
+**IMPORTANT**: As of 2025-10-26, a new `categorias` table has been added as a reference table. This creates a NEW dependency order:
+
+**NEW Dependency Chain**:
+```
+Migration 002: categorias (no dependencies)
+    ↓ (referenced by)
+    ├─ Migration 003: regras_de_classificacao (categoria_id FK)
+    ├─ Migration 004: auditoria_classificacao (references regras_de_classificacao)
+    └─ Migration 005: criterios_palavras_chave (references regras_de_classificacao)
+```
+
+**Rollback MUST be in reverse order**:
+1. Drop 005 (criterios_palavras_chave)
+2. Drop 004 (auditoria_classificacao)
+3. Drop 003 (regras_de_classificacao) - MUST be before categorias
+4. Drop 002 (categorias) - LAST because rules depend on it
 
 ## ⚠️ Important Warnings
 
@@ -21,16 +41,20 @@ This document provides instructions for rolling back database migrations in case
 # From psql prompt or SQL file execution:
 psql -h localhost -U classifier_user -d classifier_test -f - << 'EOF'
 
--- Rollback in REVERSE order (opposite of execution)
+-- Rollback in REVERSE order (CRITICAL: categorias must be dropped LAST)
 
--- Drop Migration 003: Keywords table first (references Migration 001)
+-- Drop Migration 005: Keywords table first (references Migration 003)
 DROP TABLE IF EXISTS criterios_palavras_chave CASCADE;
 
--- Drop Migration 002: Audit log table (references Migration 001)
+-- Drop Migration 004: Audit log table (references Migration 003)
 DROP TABLE IF EXISTS auditoria_classificacao CASCADE;
 
--- Drop Migration 001: Rules table (base table)
+-- Drop Migration 003: Rules table (references Migration 002 - categorias)
 DROP TABLE IF EXISTS regras_de_classificacao CASCADE;
+
+-- Drop Migration 002: Categories table (referenced by Migration 003)
+-- MUST be after regras_de_classificacao due to FK
+DROP TABLE IF EXISTS categorias CASCADE;
 
 -- Verify tables are gone
 \dt
@@ -40,14 +64,14 @@ EOF
 
 ### Rolling Back Individual Migrations
 
-#### Rollback Migration 003 Only (Keywords Index)
+#### Rollback Migration 005 Only (Keywords Index)
 
 ```sql
--- Safe: No dependencies on this table
+-- Safe: No other tables depend on this
 DROP TABLE IF EXISTS criterios_palavras_chave CASCADE;
 ```
 
-#### Rollback Migration 002 Only (Audit Log)
+#### Rollback Migration 004 Only (Audit Log)
 
 ```sql
 -- WARNING: Deletes audit log history
@@ -57,37 +81,52 @@ CREATE TABLE auditoria_classificacao_backup AS SELECT * FROM auditoria_classific
 DROP TABLE IF EXISTS auditoria_classificacao CASCADE;
 ```
 
-#### Rollback Migration 001 Only (Rules Table)
+#### Rollback Migration 003 Only (Rules Table)
 
 ```sql
--- DANGER: This will fail if other tables reference it
--- You MUST rollback 002 and 003 first
+-- CRITICAL: You MUST rollback 004 and 005 first
+-- regras_de_classificacao has FK reference to categorias
+-- Cannot drop categorias while this table exists
 
--- Step 1: Verify no dependent tables
+-- Step 1: Verify dependencies
 SELECT table_name FROM information_schema.table_constraints
 WHERE constraint_type = 'FOREIGN KEY'
 AND table_schema = 'public';
 
--- Step 2: Drop references (if any remain)
-ALTER TABLE auditoria_classificacao DROP CONSTRAINT auditoria_classificacao_id_regra_fkey;
-ALTER TABLE criterios_palavras_chave DROP CONSTRAINT criterios_palavras_chave_id_regra_fkey;
-
--- Step 3: Drop the table
+-- Step 2: Drop dependent references (4 and 5 must be gone first)
 DROP TABLE IF EXISTS regras_de_classificacao CASCADE;
+```
+
+#### Rollback Migration 002 Only (Categories Table)
+
+```sql
+-- DANGER: regras_de_classificacao depends on this!
+-- You MUST rollback Migration 003 (regras_de_classificacao) first
+
+-- Verify no tables reference categorias
+SELECT *
+FROM information_schema.referential_constraints
+WHERE constraint_schema = 'public'
+AND unique_constraint_name = 'categorias_pkey';
+
+-- Only drop if regras_de_classificacao is already dropped
+DROP TABLE IF EXISTS categorias CASCADE;
 ```
 
 ### Partial Data Cleanup (Keep Structure, Clear Data)
 
 ```sql
--- Keep table structure, delete all data (for testing)
-TRUNCATE TABLE regras_de_classificacao CASCADE;
-TRUNCATE TABLE auditoria_classificacao CASCADE;
+-- TRUNCATE in correct order (reverse of creation due to FKs)
 TRUNCATE TABLE criterios_palavras_chave CASCADE;
+TRUNCATE TABLE auditoria_classificacao CASCADE;
+TRUNCATE TABLE regras_de_classificacao CASCADE;
+TRUNCATE TABLE categorias CASCADE;
 
--- Or individually:
+-- Or DELETE individually (slower but safer):
 DELETE FROM criterios_palavras_chave;
 DELETE FROM auditoria_classificacao;
 DELETE FROM regras_de_classificacao;
+DELETE FROM categorias;
 ```
 
 ## Recovery Procedures
@@ -95,10 +134,14 @@ DELETE FROM regras_de_classificacao;
 ### After Rollback, Re-apply Migrations
 
 ```bash
-# Re-apply migrations in order
-psql -h localhost -U classifier_user -d classifier_test -f migrations/001_create_regras_de_classificacao.sql
-psql -h localhost -U classifier_user -d classifier_test -f migrations/002_create_auditoria_classificacao.sql
-psql -h localhost -U classifier_user -d classifier_user -f migrations/003_create_criterios_palavras_chave.sql
+# Re-apply migrations in CORRECT order (categorias FIRST)
+psql -h localhost -U classifier_user -d classifier_test -f migrations/002_create_categorias.sql
+psql -h localhost -U classifier_user -d classifier_test -f migrations/003_create_regras_de_classificacao.sql
+psql -h localhost -U classifier_user -d classifier_test -f migrations/004_create_auditoria_classificacao.sql
+psql -h localhost -U classifier_user -d classifier_test -f migrations/005_create_criterios_palavras_chave.sql
+
+# Verify
+psql -h localhost -U classifier_user -d classifier_test -c "\dt"
 ```
 
 ### Restore from Backup
@@ -111,16 +154,25 @@ pg_restore -h localhost -U classifier_user -d classifier_test /path/to/backup.du
 ## Migration Dependencies
 
 ```
-Migration 001: regras_de_classificacao
+Migration 002: categorias (no dependencies)
     ↓ (referenced by)
-    ├─ Migration 002: auditoria_classificacao (id_regra FK)
-    └─ Migration 003: criterios_palavras_chave (id_regra FK)
+    └─ Migration 003: regras_de_classificacao (categoria_id FK → categorias)
+            ↓ (referenced by)
+            ├─ Migration 004: auditoria_classificacao (id_regra FK)
+            └─ Migration 005: criterios_palavras_chave (id_regra FK)
 ```
 
+**Execution Order** (MUST be respected):
+1. Migration 002: `categorias` (no dependencies, must be first)
+2. Migration 003: `regras_de_classificacao` (depends on 002)
+3. Migration 004: `auditoria_classificacao` (depends on 003)
+4. Migration 005: `criterios_palavras_chave` (depends on 003)
+
 **Rollback Order** (REVERSE of execution):
-1. Migration 003 (criterios_palavras_chave) - depends on nothing
-2. Migration 002 (auditoria_classificacao) - depends on 001
-3. Migration 001 (regras_de_classificacao) - no dependencies after 002+003 dropped
+1. Migration 005 (criterios_palavras_chave) - safe to drop first
+2. Migration 004 (auditoria_classificacao) - depends on 003
+3. Migration 003 (regras_de_classificacao) - MUST be before 002
+4. Migration 002 (categorias) - LAST because 003 references it
 
 ## Emergency Rollback Script
 
@@ -142,17 +194,19 @@ if [ "$confirm" != "ROLLBACK" ]; then
     exit 1
 fi
 
-echo "Rolling back all migrations..."
+echo "Rolling back all migrations (correct order: 5→4→3→2)..."
 
 psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" << 'EOF'
+-- Drop in REVERSE order (CRITICAL for FK dependencies)
 DROP TABLE IF EXISTS criterios_palavras_chave CASCADE;
 DROP TABLE IF EXISTS auditoria_classificacao CASCADE;
 DROP TABLE IF EXISTS regras_de_classificacao CASCADE;
+DROP TABLE IF EXISTS categorias CASCADE;
 
 SELECT 'All tables dropped successfully' AS status;
 EOF
 
-echo "✓ Rollback complete"
+echo "✓ Rollback complete - All migrations reverted"
 ```
 
 ## Verification Commands

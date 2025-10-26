@@ -18,6 +18,26 @@ Build a generic, data-driven rule evaluation engine that reads classification ru
 **Constraints**: Simple field matching without complex sub-query logic; stateless evaluation
 **Scale/Scope**: Support thousands of active rules; millions of classification requests per day
 
+## Category Management Strategy
+
+**New in v1.2.0**: `categorias` table provides centralized category management with referential integrity.
+
+**Schema Design**:
+- `categorias` table created FIRST (dependency for rules and products)
+- `regras_de_classificacao.categoria_id` → Foreign Key to `categorias.id` (ON DELETE RESTRICT, ON UPDATE CASCADE)
+- `produtos_tabela.categoria_id` → Foreign Key to `categorias.id` (optional for product history)
+
+**Category Seeding**:
+- Base categories must be seeded during initialization (via migration or init script)
+- Examples: ELETRÔNICOS, CABOS, ACESSÓRIOS, PERIFÉRICOS, COMPONENTES
+- All rules MUST reference valid category IDs
+
+**Benefits**:
+- Data normalization (prevent category name duplication)
+- Referential integrity (prevent orphaned/invalid category references)
+- Flexible category management (rename, deactivate, group without code changes)
+- Audit trail (track category usage via rule/product relationships)
+
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
@@ -81,8 +101,9 @@ specs/001-rule-engine/
 ├── .env                             # Database configuration (NOT in git)
 ├── .env.example                     # Template for developers
 ├── migrations/                      # Database migrations
-│   ├── 001_create_tables.sql
-│   └── 002_create_indexes.sql
+│   ├── 002_create_categorias.sql    # Categories reference table (FIRST)
+│   ├── 003_create_regras_de_classificacao.sql  # Rules with FK to categorias
+│   └── 004_create_indexes.sql
 ├── src/
 │   └── classifier/
 │       ├── __init__.py

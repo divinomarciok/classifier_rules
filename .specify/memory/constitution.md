@@ -1,19 +1,29 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: 1.0.0 → 1.1.0
-Rationale: Added database infrastructure and configuration governance section
+Version Change: 1.1.0 → 1.2.0
+Rationale: Added categorias reference table with FK relationships for data normalization and integrity
 New Sections Added:
-  - Infrastructure & Database Configuration (requirements for .env and database setup)
+  - categorias table specification in "Required Tables & Columns"
 Modified Sections:
-  - Enhanced Data Schema Governance with migration requirements
+  - Core Tables list: Added categorias as REQUIRED core table
+  - regras_de_classificacao: Changed resultado_classificacao (VARCHAR) to categoria_id (FK)
+  - regras_de_classificacao: Added ON DELETE RESTRICT, ON UPDATE CASCADE constraints
 Sections Affected:
-  - Governance (added infrastructure compliance verification)
-Templates Requiring Updates:
-  ✅ spec-template.md (no changes needed - specs are business-focused)
-  ✅ plan-template.md (add "Infrastructure Setup" to foundational phase)
-  ✅ tasks-template.md (add database migration and schema creation tasks)
-Follow-up TODOs: None - all database requirements documented
+  - Data Schema Governance (added referential integrity requirements)
+  - Governance (updated compliance verification for FK constraints)
+Templates & Docs Requiring Updates:
+  ⚠️ spec.md (add Category entity, update Rule/Product entities, add FR-001b)
+  ⚠️ plan.md (update database schema, add categorias migration)
+  ⚠️ tasks.md (reorder migrations: categorias FIRST, renumber T008-T012)
+  ⚠️ CLAUDE.md (add categorias setup, seed categories examples, troubleshooting)
+  ⚠️ conftest.py fixtures (insert categorias before regras_de_classificacao)
+  ⚠️ models.py (when implemented: add Category class, update Rule.categoria_id, Product.categoria_id)
+Follow-up TODOs:
+  - Create migration: 002_create_categorias.sql
+  - Update migrations: 003_create_regras_de_classificacao.sql (add FK)
+  - Create seed script: src/classifier/seed_categories.py
+  - Update all tests to handle category relationships
 -->
 
 # Classifier v2 Constitution
@@ -123,7 +133,8 @@ this governance:
   scripts and rollback procedures
 
 **Core Tables MUST include:**
-- `regras_de_classificacao` — Classification rules with priority and criteria
+- `categorias` — Category reference table with all valid classification categories
+- `regras_de_classificacao` — Classification rules with priority and criteria, foreign key to categorias
 - `auditoria_classificacao` — Audit logs tracking rule application history
 - Any supporting tables for rule criteria (e.g., keywords, ranges, patterns)
 
@@ -160,7 +171,17 @@ This governance includes:
 
 **Required Tables & Columns:**
 
-**1. `regras_de_classificacao` (Classification Rules)**
+**1. `categorias` (Product Categories - Reference Table)**
+- `id` (PRIMARY KEY, INTEGER/SERIAL) — Unique category identifier
+- `nome` (VARCHAR, NOT NULL, UNIQUE) — Category name (e.g., "ELETRÔNICOS", "CABOS")
+- `descricao` (TEXT) — Detailed category description
+- `ativo` (BOOLEAN, DEFAULT true) — Whether category is currently in use
+- `data_criacao` (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP) — Creation timestamp
+- `data_atualizacao` (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP) — Last update timestamp
+- INDEX on (`ativo`, `nome`) for efficient category lookup
+- CONSTRAINT: `nome` must be UNIQUE (prevents duplicate category names)
+
+**2. `regras_de_classificacao` (Classification Rules)**
 - `id` (PRIMARY KEY) — Unique rule identifier
 - `prioridade` (INTEGER, NOT NULL) — Priority level (higher = more important)
 - `nome` (VARCHAR, NOT NULL) — Rule name/description
@@ -171,11 +192,15 @@ This governance includes:
 - `criterio_tamanho_max` (DECIMAL) — Maximum size threshold
 - `criterio_quantidade_min` (INTEGER) — Minimum quantity threshold
 - `criterio_quantidade_max` (INTEGER) — Maximum quantity threshold
-- `criterio_categoria` (VARCHAR) — Product category (if applicable)
-- `resultado_classificacao` (VARCHAR, NOT NULL) — Classification result code
+- `criterio_categoria` (VARCHAR) — Product category filter (if applicable)
+- `categoria_id` (INTEGER, NOT NULL, FOREIGN KEY → `categorias`.`id`) — Result category
+  - CONSTRAINT: ON DELETE RESTRICT (prevent deleting categories in use)
+  - CONSTRAINT: ON UPDATE CASCADE (update references if category ID changes)
 - `data_criacao` (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP) — Creation timestamp
 - `data_atualizacao` (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP) — Last update timestamp
 - INDEX on (`prioridade DESC`, `ativo`) for efficient rule lookup
+- INDEX on (`categoria_id`) for queries filtering by result category
+- CONSTRAINT: NOT NULL on `prioridade`, `nome`, `categoria_id`
 
 **2. `auditoria_classificacao` (Audit Logs)**
 - `id` (PRIMARY KEY) — Unique audit log entry ID
@@ -230,4 +255,4 @@ against these principles.
 - All migrations MUST be reversible and tracked in version control
 - Use CLAUDE.md for runtime development guidance and implementation patterns
 
-**Version**: 1.1.0 | **Ratified**: 2025-10-25 | **Last Amended**: 2025-10-25
+**Version**: 1.2.0 | **Ratified**: 2025-10-25 | **Last Amended**: 2025-10-26

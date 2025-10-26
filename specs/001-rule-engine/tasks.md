@@ -47,44 +47,55 @@ description: "Task list for Rule Engine Core implementation"
 
 - [ ] T006 Create `.env` file by copying `.env.example` and updating with test database credentials (DB_HOST=localhost, DB_NAME=market_v1, DB_USER=user, DB_PASSWORD=password, DB_PORT=5432)
 - [ ] T007 [P] Create database migration framework tracking file: `migrations/migrations_history.sql`
-- [ ] T008 Create database schema migration: `migrations/001_create_regras_de_classificacao.sql`
-  - Table: `regras_de_classificacao` with 14 columns (id, prioridade, nome, ativo, criterio_palavras_chave, criterio_ncm, criterio_tamanho_min, criterio_tamanho_max, criterio_quantidade_min, criterio_quantidade_max, criterio_categoria, resultado_classificacao, data_criacao, data_atualizacao)
-  - PRIMARY KEY on `id`, COMPOSITE INDEX on (prioridade DESC, ativo), SIMPLE INDEX on data_criacao
+- [ ] T008 Create database schema migration: `migrations/002_create_categorias.sql` (MUST RUN FIRST)
+  - Table: `categorias` with 5 columns (id SERIAL PRIMARY KEY, nome VARCHAR UNIQUE NOT NULL, descricao TEXT, ativo BOOLEAN DEFAULT TRUE, data_criacao TIMESTAMP, data_atualizacao TIMESTAMP)
+  - UNIQUE INDEX on `nome` (prevents duplicate category names)
+  - COMPOSITE INDEX on (ativo, nome) for efficient lookups
   - Use CREATE TABLE IF NOT EXISTS for idempotency
-  - Include validation constraints (NOT NULL on prioridade, nome, resultado_classificacao)
-- [ ] T009 Create database schema migration: `migrations/002_create_auditoria_classificacao.sql`
+  - Seed base categories: ELETRÔNICOS, CABOS, ACESSÓRIOS, PERIFÉRICOS, COMPONENTES (via migration INSERT)
+  - Include validation constraints (NOT NULL on nome)
+- [ ] T009 Create database schema migration: `migrations/003_create_regras_de_classificacao.sql` (DEPENDS ON T008)
+  - Table: `regras_de_classificacao` with updated columns (id, prioridade, nome, ativo, criterio_palavras_chave, criterio_ncm, criterio_tamanho_min, criterio_tamanho_max, criterio_quantidade_min, criterio_quantidade_max, criterio_categoria, categoria_id, data_criacao, data_atualizacao)
+  - PRIMARY KEY on `id`, COMPOSITE INDEX on (prioridade DESC, ativo), SIMPLE INDEX on categoria_id
+  - Foreign Key: `categoria_id` references `categorias(id)` with ON DELETE RESTRICT, ON UPDATE CASCADE
+  - Use CREATE TABLE IF NOT EXISTS for idempotency
+  - Include validation constraints (NOT NULL on prioridade, nome, categoria_id)
+- [ ] T010 Create database schema migration: `migrations/004_create_auditoria_classificacao.sql` (DEPENDS ON T009)
   - Table: `auditoria_classificacao` with 10 columns (id, id_regra, id_produto, descricao_produto, ncm_produto, criterios_combinados, resultado_classificacao, data_classificacao, usuario_sistema, tempo_avaliacao_ms)
   - PRIMARY KEY on `id`, FOREIGN KEY on `id_regra` referencing regras_de_classificacao(id)
   - COMPOSITE INDEX on (id_produto, data_classificacao), COMPOSITE INDEX on (id_regra, data_classificacao), SIMPLE INDEX on data_classificacao
   - Use CREATE TABLE IF NOT EXISTS for idempotency
   - Include constraint: resultado_classificacao NOT NULL
-- [ ] T010 Create database schema migration: `migrations/003_create_criterios_palavras_chave.sql` (optional table for normalized keywords)
+- [ ] T011 Create database schema migration: `migrations/005_create_criterios_palavras_chave.sql` (optional table for normalized keywords)
   - Table: `criterios_palavras_chave` with 5 columns (id, id_regra, palavra_chave, peso, data_criacao)
   - PRIMARY KEY on `id`, FOREIGN KEY on `id_regra`, UNIQUE INDEX on (id_regra, palavra_chave)
   - Use CREATE TABLE IF NOT EXISTS for idempotency
-- [ ] T011 Create idempotent database initialization script: `src/classifier/init_db.py`
-  - Function: `init_database()` that executes all migration SQL files in order
+- [ ] T012 Create idempotent database initialization script: `src/classifier/init_db.py`
+  - Function: `init_database()` that executes all migration SQL files in order (002, 003, 004, 005...)
   - Reads .env for connection parameters
   - Rolls back and reports if any migration fails
   - Returns success/failure status
-- [ ] T012 Add rollback procedures file: `migrations/ROLLBACK.md`
+  - Special handling: Ensure T008 (categorias) runs BEFORE T009 (regras_de_classificacao)
+- [ ] T013 Add rollback procedures file: `migrations/ROLLBACK.md`
   - Document DROP TABLE statements for each migration (in reverse order)
   - Include instructions for safe rollback
+  - Note: Must drop regras_de_classificacao BEFORE categorias (FK dependency)
 
 ### Application Infrastructure
 
-- [ ] T013 [P] Create application configuration module: `src/classifier/utils.py`
+- [ ] T014 [P] Create application configuration module: `src/classifier/utils.py`
   - Function: `load_config()` reads from `.env` file and returns DB connection params
   - Function: `get_db_connection()` creates psycopg2 connection using config
   - Raises `ConfigError` if .env missing or invalid
   - Raises `DatabaseError` if connection fails
-- [ ] T014 [P] Create exception classes module: `src/classifier/__init__.py`
+- [ ] T015 [P] Create exception classes module: `src/classifier/__init__.py`
   - Classes: `ConfigError`, `DatabaseError`, `ProductError`, `EvaluationError`
   - Each with clear error messages and inheritance from Exception
-- [ ] T015 [P] Create `tests/conftest.py` with pytest fixtures
+- [ ] T016 [P] Create `tests/conftest.py` with pytest fixtures
   - Fixture: `db_connection` — creates test database connection from .env
-  - Fixture: `sample_rules` — inserts 5 test rules into test database
-  - Fixture: `cleanup` — truncates audit log and rules tables after each test
+  - Fixture: `sample_categories` — inserts 5 test categories (MUST RUN FIRST)
+  - Fixture: `sample_rules` — inserts 5 test rules into test database (depends on sample_categories)
+  - Fixture: `cleanup` — truncates audit log, rules, and categories tables after each test (order: rules→categories)
   - Include: `@pytest.fixture(scope="function")`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
@@ -101,13 +112,13 @@ description: "Task list for Rule Engine Core implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T016 [P] [US1] Contract test for RuleEngine.evaluate() in `tests/contract/test_rule_engine_api.py`
+- [ ] T018 [P] [US1] Contract test for RuleEngine.evaluate() in `tests/contract/test_rule_engine_api.py`
   - Test: `test_evaluate_with_keyword_match()` — Product with "laptop computer" description should match keyword rule and return ELECTRONICS
   - Test: `test_evaluate_with_ncm_match()` — Product with NCM 8471* should match NCM rule
   - Test: `test_evaluate_inactive_rule_ignored()` — Product should not match inactive rule
   - Test: `test_evaluate_returns_result_dict()` — Result contains keys: classification, rule_id, rule_name, matched_criteria, evaluation_time_ms, success
   - Use fixtures from conftest.py
-- [ ] T017 [P] [US1] Integration test for rule evaluation flow in `tests/integration/test_rule_evaluation.py`
+- [ ] T019 [P] [US1] Integration test for rule evaluation flow in `tests/integration/test_rule_evaluation.py`
   - Test: `test_end_to_end_classification()` — Full flow: load rules → evaluate product → get result
   - Test: `test_evaluation_with_multiple_rules()` — Ensure only matching rules are evaluated
   - Test: `test_evaluation_performance()` — Evaluation completes in < 500ms for 100 rules
@@ -115,13 +126,13 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Models for User Story 1
 
-- [ ] T018 [P] [US1] Create Rule model in `src/classifier/models.py`
+- [ ] T019 [P] [US1] Create Rule model in `src/classifier/models.py`
   - Class: `Rule` with attributes: id, prioridade, nome, ativo, criterio_*, resultado_classificacao, data_criacao, data_atualizacao
   - Method: `from_db_row(row)` — construct Rule from database tuple
   - Method: `is_active()` — returns True if ativo = TRUE
   - Method: `__repr__()` — for debugging
 
-- [ ] T019 [P] [US1] Create Product model in `src/classifier/models.py`
+- [ ] T020 [P] [US1] Create Product model in `src/classifier/models.py`
   - Class: `Product` with attributes: id (optional), description, ncm, size (optional), quantity (optional), category (optional), other_fields (dict)
   - Method: `__init__()` with flexible keyword arguments
   - Method: `get_field(field_name)` — safely access any product attribute
@@ -129,14 +140,14 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Services for User Story 1
 
-- [ ] T020 [US1] Create Matcher service in `src/classifier/matcher.py`
+- [ ] T021 [US1] Create Matcher service in `src/classifier/matcher.py`
   - Class: `Matcher` with method `matches_all_criteria(product, rule)`
   - Logic: Keyword matching (substring, case-insensitive), NCM matching (wildcard support with *), size range matching, quantity range matching, category exact matching
   - Return: True if ALL specified criteria in rule match product, False otherwise
   - Sub-methods: `_match_keywords()`, `_match_ncm()`, `_match_size()`, `_match_quantity()`, `_match_category()`
   - Handle NULL/None criteria gracefully (skip if not specified)
 
-- [ ] T021 [US1] Create RuleEvaluator service in `src/classifier/evaluator.py`
+- [ ] T022 [US1] Create RuleEvaluator service in `src/classifier/evaluator.py`
   - Class: `Evaluator` with method `get_matching_rules(product, rules)`
   - Logic: Use Matcher to filter rules that match product
   - Return: List of matching Rule objects (or empty list if none match)
@@ -144,7 +155,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Core Engine for User Story 1
 
-- [ ] T022 [US1] Create RuleEngine class in `src/classifier/engine.py`
+- [ ] T023 [US1] Create RuleEngine class in `src/classifier/engine.py`
   - Class: `RuleEngine` with constructor `__init__(db_connection=None, cache_rules=True)`
   - Method: `_load_rules()` — fetch active rules from regras_de_classificacao table
   - Method: `_initialize_cache()` — load rules into memory if caching enabled
@@ -162,35 +173,35 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Integration for User Story 1
 
-- [ ] T023 [US1] Integrate Matcher, Evaluator, and RuleEngine in `src/classifier/engine.py`
+- [ ] T024 [US1] Integrate Matcher, Evaluator, and RuleEngine in `src/classifier/engine.py`
   - Complete evaluate() method to call: get_rules() → Evaluator → Matcher → return result
   - Add error handling with try-catch for all exceptions
   - Add debug logging for rule matching process
-- [ ] T024 [US1] Create unit tests for Matcher in `tests/unit/test_matcher.py`
+- [ ] T025 [US1] Create unit tests for Matcher in `tests/unit/test_matcher.py`
   - Test: `test_match_keywords_substring()` — "laptop" matches "laptop computer"
   - Test: `test_match_keywords_case_insensitive()` — "LAPTOP" matches "laptop computer"
   - Test: `test_match_ncm_wildcard()` — "8471*" matches "84713090"
   - Test: `test_match_size_range()` — Range [1.0, 10.0] matches size=5.0 but not size=0.5
   - Test: `test_match_all_criteria_require_true()` — False if ANY criterion is false
-  - Run AFTER T020 implementation
-
-- [ ] T025 [US1] Create unit tests for RuleEvaluator in `tests/unit/test_evaluator.py`
-  - Test: `test_get_matching_rules_filters_correctly()` — Only returns rules that Matcher confirms
-  - Test: `test_get_matching_rules_empty_list()` — Returns empty list if no matches
   - Run AFTER T021 implementation
 
-- [ ] T026 [US1] Create unit tests for RuleEngine in `tests/unit/test_rule_engine.py`
+- [ ] T026 [US1] Create unit tests for RuleEvaluator in `tests/unit/test_evaluator.py`
+  - Test: `test_get_matching_rules_filters_correctly()` — Only returns rules that Matcher confirms
+  - Test: `test_get_matching_rules_empty_list()` — Returns empty list if no matches
+  - Run AFTER T022 implementation
+
+- [ ] T027 [US1] Create unit tests for RuleEngine in `tests/unit/test_rule_engine.py`
   - Test: `test_evaluate_returns_dict_with_required_keys()` — Result has all expected keys
   - Test: `test_evaluate_with_valid_product()` — Evaluation succeeds
   - Test: `test_evaluate_with_invalid_product()` — Raises ProductError
   - Test: `test_evaluate_handles_no_match()` — Returns NO_MATCH when appropriate
-  - Run AFTER T022 implementation
+  - Run AFTER T023 implementation
 
-- [ ] T027 [US1] Create unit tests for Rule and Product models in `tests/unit/test_models.py`
+- [ ] T028 [US1] Create unit tests for Rule and Product models in `tests/unit/test_models.py`
   - Test: `test_rule_from_db_row()` — Correctly construct Rule from database tuple
   - Test: `test_product_init_with_kwargs()` — Flexible initialization
   - Test: `test_product_get_field_optional()` — Safe field access
-  - Run AFTER T018, T019 implementation
+  - Run AFTER T019, T020 implementation
 
 **Checkpoint**: User Story 1 complete and independently testable
 
@@ -206,14 +217,14 @@ description: "Task list for Rule Engine Core implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T028 [P] [US2] Contract test for priority resolution in `tests/contract/test_priority_resolution.py`
+- [ ] T029 [P] [US2] Contract test for priority resolution in `tests/contract/test_priority_resolution.py`
   - Test: `test_highest_priority_wins()` — 3 matching rules with priorities 10, 20, 25 → rule 25 returned
   - Test: `test_identical_priority_tiebreak()` — 2 rules, same priority → older by creation date returned
   - Test: `test_priority_override_lower()` — Lower priority rule never selected if higher priority matches
   - Test: `test_priority_consistency()` — Same product evaluated 100 times → always same rule selected
   - Use sample_rules fixture with multiple overlapping rules
 
-- [ ] T029 [P] [US2] Integration test for conflict resolution in `tests/integration/test_priority_resolution.py`
+- [ ] T030 [P] [US2] Integration test for conflict resolution in `tests/integration/test_priority_resolution.py`
   - Test: `test_multiple_matching_rules_resolution()` — Full workflow with multiple matches
   - Test: `test_priority_with_different_criteria()` — Priority works across keyword, NCM, and range criteria
   - Test: `test_complex_scenario()` — 5+ rules, multiple matches, correct winner selected
@@ -221,7 +232,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Services for User Story 2
 
-- [ ] T030 [US2] Create Selector/Resolver service in `src/classifier/evaluator.py`
+- [ ] T031 [US2] Create Selector/Resolver service in `src/classifier/evaluator.py`
   - Method: `select_winner(matching_rules)` in existing Evaluator class
   - Logic: Sort by prioridade DESC, then by data_criacao ASC (FIFO tiebreak)
   - Return: Single Rule object with highest priority (oldest if tied)
@@ -230,7 +241,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Core Engine Update for User Story 2
 
-- [ ] T031 [US2] Update RuleEngine.evaluate() to use priority resolution in `src/classifier/engine.py`
+- [ ] T032 [US2] Update RuleEngine.evaluate() to use priority resolution in `src/classifier/engine.py`
   - Replace: "Return first matching rule" with "Get all matching rules, select winner"
   - Call: `Evaluator.select_winner(matching_rules)` after matching
   - Update return dict with: winner rule details
@@ -239,16 +250,16 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Testing for User Story 2
 
-- [ ] T032 [US2] Add unit tests for priority selector in `tests/unit/test_evaluator.py`
+- [ ] T033 [US2] Add unit tests for priority selector in `tests/unit/test_evaluator.py`
   - Test: `test_select_winner_highest_priority()` — Correct rule selected from unsorted list
   - Test: `test_select_winner_tiebreak_fifo()` — Older rule wins when priorities identical
   - Test: `test_select_winner_empty_list()` — Raises error on empty input
-  - Run AFTER T030 implementation
+  - Run AFTER T031 implementation
 
-- [ ] T033 [US2] Add integration tests for full priority workflow in `tests/integration/test_priority_resolution.py`
+- [ ] T034 [US2] Add integration tests for full priority workflow in `tests/integration/test_priority_resolution.py`
   - Test: `test_full_workflow_with_priority()` — Load rules → match → select winner → return
   - Test: `test_consistency_across_evaluations()` — Same product, 100 evaluations → always same rule
-  - Run AFTER T031 implementation
+  - Run AFTER T032 implementation
 
 **Checkpoint**: User Stories 1 AND 2 both complete and independently testable. Priority resolution working correctly.
 
@@ -264,7 +275,7 @@ description: "Task list for Rule Engine Core implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T034 [P] [US3] Contract test for audit logging in `tests/contract/test_audit_logging.py`
+- [ ] T035 [P] [US3] Contract test for audit logging in `tests/contract/test_audit_logging.py`
   - Test: `test_audit_log_created_for_match()` — Classification creates audit entry with rule_id, timestamp
   - Test: `test_audit_log_created_for_no_match()` — NO_MATCH classifications also logged with id_regra=NULL
   - Test: `test_audit_log_contains_product_details()` — Log includes product id, description, ncm
@@ -274,7 +285,7 @@ description: "Task list for Rule Engine Core implementation"
   - Test: `test_audit_log_includes_evaluation_time()` — Log has tempo_avaliacao_ms
   - Use fixtures and database connection
 
-- [ ] T035 [P] [US3] Integration test for audit trail queries in `tests/integration/test_audit_logging.py`
+- [ ] T036 [P] [US3] Integration test for audit trail queries in `tests/integration/test_audit_logging.py`
   - Test: `test_query_audit_by_product()` — Retrieve all classifications for a product
   - Test: `test_query_audit_by_rule()` — Retrieve all classifications using a rule
   - Test: `test_audit_completeness()` — Every evaluate() call creates exactly one log entry
@@ -283,7 +294,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Audit Service for User Story 3
 
-- [ ] T036 [US3] Create AuditLog service in `src/classifier/audit.py`
+- [ ] T037 [US3] Create AuditLog service in `src/classifier/audit.py`
   - Class: `AuditLog` with constructor that takes db_connection
   - Method: `record(rule_id, product_data, matched_criteria, classification_result, evaluation_time_ms, user)`
     - Input: rule_id (int or None), product_data (dict), matched_criteria (list), classification_result (str), evaluation_time_ms (int), user (str)
@@ -301,7 +312,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Core Engine Update for User Story 3
 
-- [ ] T037 [US3] Update RuleEngine.evaluate() to log decisions in `src/classifier/engine.py`
+- [ ] T038 [US3] Update RuleEngine.evaluate() to log decisions in `src/classifier/engine.py`
   - Import: `from classifier.audit import AuditLog`
   - After evaluation completes:
     - Call: `AuditLog(self.connection).record(winner_rule_id, product, matched_criteria, classification, eval_time, user)`
@@ -311,23 +322,23 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Testing for User Story 3
 
-- [ ] T038 [US3] Create unit tests for AuditLog in `tests/unit/test_audit.py`
+- [ ] T039 [US3] Create unit tests for AuditLog in `tests/unit/test_audit.py`
   - Test: `test_record_inserts_correctly()` — Record method inserts and returns ID
   - Test: `test_record_with_null_rule_id()` — No-match case handled (rule_id = NULL)
   - Test: `test_get_product_history_returns_sorted()` — Results ordered by timestamp DESC
   - Test: `test_get_rule_statistics_calculates_correctly()` — Stats aggregation works
-  - Run AFTER T036 implementation
+  - Run AFTER T037 implementation
 
-- [ ] T039 [US3] Create integration tests for audit workflow in `tests/integration/test_audit_logging.py`
+- [ ] T040 [US3] Create integration tests for audit workflow in `tests/integration/test_audit_logging.py`
   - Test: `test_full_workflow_logs_decision()` — evaluate() → audit entry created
   - Test: `test_multiple_evaluations_all_logged()` — 100 evaluations → 100 audit entries
   - Test: `test_audit_queryable_after_classification()` — Log queryable immediately after creation
-  - Run AFTER T037 implementation
+  - Run AFTER T038 implementation
 
-- [ ] T040 [US3] Add audit logging to existing RuleEngine tests (update `tests/integration/test_rule_evaluation.py`)
+- [ ] T041 [US3] Add audit logging to existing RuleEngine tests (update `tests/integration/test_rule_evaluation.py`)
   - Add: Query audit logs to verify each evaluation was recorded
   - Add: Verify matched_criteria populated correctly for different rule types
-  - Run AFTER T037, T038 implementation
+  - Run AFTER T038, T039 implementation
 
 **Checkpoint**: All three user stories complete and independently testable. Full classification workflow with priority resolution and audit logging working.
 
@@ -343,7 +354,7 @@ description: "Task list for Rule Engine Core implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T054 [P] [US4] Contract test for batch classification in `tests/contract/test_batch_classification.py`
+- [ ] T055 [P] [US4] Contract test for batch classification in `tests/contract/test_batch_classification.py`
   - Test: `test_batch_classify_with_limit()` — Running with `-500` fetches and processes exactly 500 products
   - Test: `test_batch_classify_with_offset()` — Running with `--offset 100` starts from correct position
   - Test: `test_batch_classify_updates_database()` — Products categoria field updated in database
@@ -352,7 +363,7 @@ description: "Task list for Rule Engine Core implementation"
   - Test: `test_batch_classify_with_custom_where()` — Custom `--where` filter works correctly
   - Use fixtures and database connection
 
-- [ ] T055 [P] [US4] Integration test for batch workflow in `tests/integration/test_batch_classification.py`
+- [ ] T056 [P] [US4] Integration test for batch workflow in `tests/integration/test_batch_classification.py`
   - Test: `test_end_to_end_batch_workflow()` — Full workflow: fetch unclassified → classify all → update DB → audit logged
   - Test: `test_batch_performance()` — 500 products complete in under 5 minutes (SC-007)
   - Test: `test_batch_error_handling()` — Database errors logged, processing continues
@@ -361,7 +372,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### CLI Service for User Story 4
 
-- [ ] T056 [US4] Create BatchClassifier service in `src/classifier/cli/batch_classifier.py`
+- [ ] T057 [US4] Create BatchClassifier service in `src/classifier/cli/batch_classifier.py`
   - Class: `BatchClassifier` with constructor taking db_connection and rule_engine
   - Method: `classify_batch(limit, offset=0, where_clause=None, user="system")`
     - Input: limit (int), offset (int), where_clause (str or None), user (str)
@@ -380,7 +391,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### CLI Script for User Story 4
 
-- [ ] T057 [US4] Create CLI entry point in `src/classifier/cli/classify_batch.py`
+- [ ] T058 [US4] Create CLI entry point in `src/classifier/cli/classify_batch.py`
   - Script: Command-line interface for batch classification
   - Arguments:
     - `limit` (positional, required): Number of products to classify (e.g., `-500`)
@@ -403,19 +414,19 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Testing for User Story 4
 
-- [ ] T058 [US4] Create unit tests for BatchClassifier in `tests/unit/test_batch_classifier.py`
+- [ ] T059 [US4] Create unit tests for BatchClassifier in `tests/unit/test_batch_classifier.py`
   - Test: `test_build_query_with_limit()` — SQL query includes LIMIT correctly
   - Test: `test_build_query_with_offset()` — SQL query includes OFFSET correctly
   - Test: `test_build_query_with_custom_where()` — WHERE clause added correctly
   - Test: `test_update_product_category()` — UPDATE statement works
   - Test: `test_progress_calculation()` — Progress reporting accurate
-  - Run AFTER T056 implementation
+  - Run AFTER T057 implementation
 
-- [ ] T059 [US4] Create integration tests for CLI workflow in `tests/integration/test_batch_classification.py`
+- [ ] T060 [US4] Create integration tests for CLI workflow in `tests/integration/test_batch_classification.py`
   - Test: `test_full_batch_workflow()` — Script runs, fetches, classifies, updates, logs
   - Test: `test_batch_with_real_database()` — Works with actual test database
   - Test: `test_performance_target_met()` — Meets SC-007 (500 products < 5 minutes)
-  - Run AFTER T057 implementation
+  - Run AFTER T058 implementation
 
 **Checkpoint**: User Story 4 complete. Batch classification working end-to-end.
 
@@ -431,7 +442,7 @@ description: "Task list for Rule Engine Core implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T060 [P] [US5] Contract test for CSV classification in `tests/contract/test_csv_classification.py`
+- [ ] T061 [P] [US5] Contract test for CSV classification in `tests/contract/test_csv_classification.py`
   - Test: `test_csv_read_and_classify()` — CSV input → classified output CSV created
   - Test: `test_csv_output_contains_classification_columns()` — Output has categoria, rule_id, rule_name, matched_criteria, evaluation_time_ms
   - Test: `test_csv_column_mapping()` — Custom column names supported (--product-id, --description, --ncm)
@@ -441,7 +452,7 @@ description: "Task list for Rule Engine Core implementation"
   - Test: `test_csv_with_invalid_rows()` — Invalid rows skipped, valid ones processed, report generated
   - Use sample CSV files and check output
 
-- [ ] T061 [P] [US5] Integration test for CSV workflow in `tests/integration/test_csv_classification.py`
+- [ ] T062 [P] [US5] Integration test for CSV workflow in `tests/integration/test_csv_classification.py`
   - Test: `test_end_to_end_csv_workflow()` — Full workflow: read CSV → classify all → write output → audit
   - Test: `test_csv_performance()` — 50,000 rows complete in under 10 minutes (SC-008)
   - Test: `test_csv_output_excel_compatible()` — Output CSV openable in Excel, no encoding issues
@@ -451,7 +462,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### CSV Service for User Story 5
 
-- [ ] T062 [US5] Create CSVClassifier service in `src/classifier/cli/csv_classifier.py`
+- [ ] T063 [US5] Create CSVClassifier service in `src/classifier/cli/csv_classifier.py`
   - Class: `CSVClassifier` with constructor taking db_connection, rule_engine, and audit_log
   - Method: `classify_csv(input_file, output_file, column_mapping=None, audit_file=None, update_db=False, user="system")`
     - Input: input_file (path), output_file (path), column_mapping (dict), audit_file (path or None), update_db (bool), user (str)
@@ -476,7 +487,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### CLI Script for User Story 5
 
-- [ ] T063 [US5] Create CLI entry point in `src/classifier/cli/classify_csv.py`
+- [ ] T064 [US5] Create CLI entry point in `src/classifier/cli/classify_csv.py`
   - Script: Command-line interface for CSV classification
   - Arguments:
     - `--input` (required): Path to input CSV file
@@ -507,7 +518,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Export Service for User Story 5 (Optional)
 
-- [ ] T064 [US5] Create ExportClassifier service in `src/classifier/cli/export_batch.py` (optional)
+- [ ] T065 [US5] Create ExportClassifier service in `src/classifier/cli/export_batch.py` (optional)
   - Class: `ExportClassifier` with constructor taking db_connection
   - Method: `export_classified_products(output_file, where_clause=None)`
     - Input: output_file (path), where_clause (str or None)
@@ -517,23 +528,23 @@ description: "Task list for Rule Engine Core implementation"
 
 ### Testing for User Story 5
 
-- [ ] T065 [US5] Create unit tests for CSVClassifier in `tests/unit/test_csv_classifier.py`
+- [ ] T066 [US5] Create unit tests for CSVClassifier in `tests/unit/test_csv_classifier.py`
   - Test: `test_read_csv_with_default_columns()` — Reads CSV correctly
   - Test: `test_read_csv_with_custom_mapping()` — Custom column names work
   - Test: `test_validate_row_missing_required()` — Validation detects missing fields
   - Test: `test_classify_row_and_capture_all_fields()` — Result dict has all fields
   - Test: `test_write_csv_with_extra_columns()` — Output includes all original + classification columns
   - Test: `test_progress_calculation()` — Progress reporting accurate for large files
-  - Run AFTER T062 implementation
+  - Run AFTER T063 implementation
 
-- [ ] T066 [US5] Create integration tests for CSV CLI workflow in `tests/integration/test_csv_classification.py`
+- [ ] T067 [US5] Create integration tests for CSV CLI workflow in `tests/integration/test_csv_classification.py`
   - Test: `test_full_csv_workflow()` — Script runs, reads CSV, classifies, writes output
   - Test: `test_csv_with_real_database()` — Works with actual test database
   - Test: `test_performance_target_met()` — Meets SC-008 (50k rows < 10 minutes)
   - Test: `test_csv_output_format()` — Output CSV matches expected format
-  - Run AFTER T063 implementation
+  - Run AFTER T064 implementation
 
-- [ ] T067 [US5] Create sample CSV files for testing in `input/` directory
+- [ ] T068 [US5] Create sample CSV files for testing in `input/` directory
   - File: `input/sample_productos.csv` with 10 test products (id, description, ncm, size, quantity)
   - File: `input/large_sample.csv` with 1000+ products for performance testing
   - Include: Products that should match various rule types (keyword, NCM, range)
@@ -546,84 +557,84 @@ description: "Task list for Rule Engine Core implementation"
 
 **Purpose**: Improvements that affect multiple user stories, documentation, and production readiness
 
-- [ ] T041 [P] Create comprehensive API documentation in `docs/api.md`
+- [ ] T042 [P] Create comprehensive API documentation in `docs/api.md`
   - Document RuleEngine.evaluate() with parameters, returns, exceptions, examples
   - Document Matcher, Evaluator, AuditLog public methods
   - Include: error handling patterns, retry strategies, performance considerations
   - Link to: `specs/001-rule-engine/contracts/rule_engine_api.md`
 
-- [ ] T042 [P] Create user guide for business users in `docs/rules_guide.md`
+- [ ] T043 [P] Create user guide for business users in `docs/rules_guide.md`
   - Section: "How to Create a Rule" with SQL examples
   - Section: "Rule Priority Explanation" with examples
   - Section: "Debugging Classifications" using audit logs
   - Section: "Best Practices" for rule design
   - Examples: 5+ real-world rule scenarios
 
-- [ ] T043 [P] Create troubleshooting guide in `docs/troubleshooting.md`
+- [ ] T044 [P] Create troubleshooting guide in `docs/troubleshooting.md`
   - Common errors and solutions: Database connection, invalid product, no rules match
   - Performance troubleshooting: Slow evaluations, query optimization
   - Audit log analysis: Finding no-match cases, rule performance
 
-- [ ] T044 Add logging throughout application in `src/classifier/`
+- [ ] T045 Add logging throughout application in `src/classifier/`
   - Configure logging in `utils.py`: INFO level, console + file output
   - Add debug logs in `matcher.py`: Which criteria matched/failed
   - Add info logs in `engine.py`: Rule loaded, matches found, winner selected
   - Add info logs in `audit.py`: Entry recorded
   - Format: "[TIMESTAMP] [LEVEL] [MODULE] Message"
 
-- [ ] T045 [P] Code review and refactoring
+- [ ] T046 [P] Code review and refactoring
   - Ensure all modules follow project conventions
   - Remove dead code, simplify complex logic
   - Add type hints to function signatures (Python 3.8+)
   - Ensure all docstrings complete and clear
 
-- [ ] T046 [P] Create `setup.py` with package metadata
+- [ ] T047 [P] Create `setup.py` with package metadata
   - Name: `classifier-rules`
   - Version: 0.1.0
   - Dependencies: psycopg2-binary, pytest (dev)
   - Include: author, description, license
   - Enable: `pip install -e .`
 
-- [ ] T047 Create production deployment guide in `docs/deployment.md`
+- [ ] T048 Create production deployment guide in `docs/deployment.md`
   - Database setup for production
   - Environment configuration best practices
   - Performance tuning: indexing, connection pooling, caching
   - Monitoring and alerting
   - Backup/restore procedures
 
-- [ ] T048 [P] Performance testing and optimization
+- [ ] T049 [P] Performance testing and optimization
   - Load test: 10,000 rules, measure evaluation time
   - Profile: Identify slow sections (matcher, query, IO)
   - Optimize: Add indexes, refactor slow logic, cache if needed
   - Validate: < 500ms for 95th percentile (per SC-003)
   - Run: `pytest tests/unit/test_performance.py`
 
-- [ ] T049 Create migration validation test in `tests/integration/test_migrations.py`
+- [ ] T050 Create migration validation test in `tests/integration/test_migrations.py`
   - Test: All migrations execute successfully in order
   - Test: Schema matches data-model.md specification
   - Test: All indexes created correctly
   - Test: Constraints enforced (NOT NULL, FK, UNIQUE, etc.)
   - Run AFTER migrations implemented
 
-- [ ] T050 Run full test suite and achieve target coverage
+- [ ] T051 Run full test suite and achieve target coverage
   - Execute: `pytest --cov=src/classifier tests/`
   - Target: 85%+ code coverage
   - Identify and test any uncovered paths
   - Generate coverage report: `pytest --cov-report=html`
 
-- [ ] T051 Update `quickstart.md` with verified setup instructions
+- [ ] T052 Update `quickstart.md` with verified setup instructions
   - Test: Follow quickstart exactly, ensure it works
   - Test: Create, classify, and audit queries work
   - Test: First-time user experience
   - Fix any gaps or unclear steps
 
-- [ ] T052 Create CHANGELOG.md documenting v0.1.0
+- [ ] T053 Create CHANGELOG.md documenting v0.1.0
   - Summary: Rule Engine Core MVP with priority resolution and audit logging
   - Features: Core evaluate(), priority handling, full audit trail
   - Supported: 3 user stories, 50+ tasks, comprehensive testing
   - Known limitations: No complex conditions (future enhancement)
 
-- [ ] T053 Final validation against specification
+- [ ] T054 Final validation against specification
   - Verify: All requirements from spec.md met
   - Verify: All success criteria achievable (SC-001 through SC-006)
   - Verify: Edge cases handled (no match, identical priority, invalid data)
@@ -717,36 +728,36 @@ description: "Task list for Rule Engine Core implementation"
 - BUT: All must complete before Phase 3 begins
 
 **User Story 1** — Within story:
-- T016, T017 (contract + integration tests, no dependencies)
-- T018, T019 (models, independent)
-- T020, T021 (services, independent)
+- T016, T018 (contract + integration tests, no dependencies)
+- T019, T020 (models, independent)
+- T021, T022 (services, independent)
 - BUT: Tests before implementation
 
 **User Story 2** — Depends on US1 complete:
-- T028, T029 (tests, independent)
-- T030 can start once T021 done (needs Evaluator)
-- T031 depends on T022 + T030
+- T029, T030 (tests, independent)
+- T031 can start once T022 done (needs Evaluator)
+- T032 depends on T023 + T031
 
 **User Story 3** — Can start parallel to US2:
-- T034, T035 (tests, independent of US2)
-- T036 independent service
-- T037 needs T022 (RuleEngine)
+- T035, T036 (tests, independent of US2)
+- T037 independent service
+- T038 needs T023 (RuleEngine)
 
 **User Story 4** — Depends on US1 complete (needs RuleEngine):
-- T054, T055 (tests, independent)
-- T056 independent service
-- T057 needs T056 (CLI script)
-- T058, T059 can run after implementation
+- T055, T056 (tests, independent)
+- T057 independent service
+- T058 needs T057 (CLI script)
+- T059, T060 can run after implementation
 
 **User Story 5** — Depends on US1 complete (needs RuleEngine):
-- T060, T061 (tests, independent)
-- T062 independent service
-- T063 needs T062 (CLI script)
-- T064 optional export service
-- T065, T066, T067 can run after implementation
+- T061, T062 (tests, independent)
+- T063 independent service
+- T064 needs T063 (CLI script)
+- T065 optional export service
+- T066, T067, T068 can run after implementation
 
 **Polish Phase** — All marked [P] can run in parallel:
-- T041, T042, T043, T044, T045, T046, T047, T048
+- T042, T043, T044, T045, T046, T047, T048, T049
 
 ---
 
@@ -757,25 +768,25 @@ description: "Task list for Rule Engine Core implementation"
 **Developer A**:
 ```
 1. T016 — Write RuleEngine contract tests (test first!)
-2. T020 — Implement Matcher service
-3. T024 — Write + run matcher unit tests
+2. T021 — Implement Matcher service
+3. T025 — Write + run matcher unit tests
 ```
 
 **Developer B** (simultaneous, different files):
 ```
-1. T017 — Write integration test for full flow
-2. T018 — Create Rule model
-3. T019 — Create Product model
-4. T027 — Write + run model unit tests
+1. T018 — Write integration test for full flow
+2. T019 — Create Rule model
+3. T020 — Create Product model
+4. T028 — Write + run model unit tests
 ```
 
 **Sequential together**:
 ```
-5. T021 — Implement Evaluator service (depends on models from B)
-6. T025 — Write + run evaluator unit tests
-7. T022 — Implement RuleEngine.evaluate() (depends on Matcher + Evaluator)
-8. T023 — Integrate all components
-9. T026 — Write + run engine unit tests
+5. T022 — Implement Evaluator service (depends on models from B)
+6. T026 — Write + run evaluator unit tests
+7. T023 — Implement RuleEngine.evaluate() (depends on Matcher + Evaluator)
+8. T024 — Integrate all components
+9. T027 — Write + run engine unit tests
 10. Validate: All tests pass, US1 independently testable ✅
 ```
 
@@ -789,20 +800,20 @@ description: "Task list for Rule Engine Core implementation"
 ```
 T001-T005 (Phase 1 Setup) → 2 hours
 T006-T012 (Phase 2 Foundational) → 4 hours
-T016-T027 (Phase 3 US1 Tests + Implementation) → 8 hours
+T016-T028 (Phase 3 US1 Tests + Implementation) → 8 hours
 TOTAL: 14 hours (start now, done in ~3 days at 5h/day)
 ```
 
 **Person 2** (starts after Phase 2 done):
 ```
 Wait for T012 completion (can start ~day 1 afternoon)
-T028-T040 (Phase 4 US2 + US3 Tests + Implementation) → 12 hours
+T029-T041 (Phase 4 US2 + US3 Tests + Implementation) → 12 hours
 TOTAL: 12 hours (start day 2, done by day 4)
 ```
 
 **Person 3** (starts during Phase 3):
 ```
-T041-T053 (Phase 5 Polish) → 6 hours
+T042-T054 (Phase 5 Polish) → 6 hours
 Can start parallel to US1 tests/implementation (day 1 afternoon)
 TOTAL: 6 hours (spread across days 2-4)
 ```
@@ -823,12 +834,12 @@ Recommended for fastest MVP delivery:
    - Deliverable: Project structure, database ready
 
 2. **Day 2**: Complete Phase 3 (User Story 1)
-   - Tasks: T016-T027
+   - Tasks: T016-T028
    - Time: ~8 hours
    - Deliverable: Working rule evaluation engine
 
 3. **Day 3**: Validate + Polish
-   - Tasks: T041-T051 (subset for MVP)
+   - Tasks: T042-T052 (subset for MVP)
    - Time: ~4 hours
    - Deliverable: MVP-ready with docs + tests
 
@@ -837,32 +848,32 @@ Recommended for fastest MVP delivery:
 ### Incremental Delivery (Recommended for Production)
 
 1. **Sprint 1** (Days 1-3): Deliver MVP (US1 only)
-   - Phase 1-3 complete (T001-T027)
+   - Phase 1-3 complete (T001-T028)
    - Deploy to staging
    - Get user feedback
 
 2. **Sprint 2** (Days 4-5): Add Priority Resolution (US2)
-   - Phase 4 complete (T028-T033)
+   - Phase 4 complete (T029-T034)
    - Enhance engine with conflict resolution
    - Deploy improvements
 
 3. **Sprint 3** (Days 6-7): Add Audit Logging (US3)
-   - Phase 5 complete (T034-T040)
+   - Phase 5 complete (T035-T041)
    - Full traceability
    - Production ready
 
 4. **Sprint 4** (Days 8-9): Add Batch Processing (US4)
-   - Phase 6 complete (T054-T059)
+   - Phase 6 complete (T055-T060)
    - CLI script for bulk database classification
    - Enable automated processing
 
 5. **Sprint 5** (Days 10-11): Add CSV Support (US5)
-   - Phase 7 complete (T060-T067)
+   - Phase 7 complete (T061-T068)
    - CSV import/export capabilities
    - Enable flexible integrations
 
 6. **Sprint 6**: Optimization + Documentation
-   - Phase N polish (T041-T053)
+   - Phase N polish (T042-T054)
    - Performance tuning
    - Comprehensive docs
 
@@ -875,15 +886,15 @@ Recommended for fastest MVP delivery:
    - Time: ~6 hours
 
 2. **Days 2-5**: All user stories in parallel
-   - Developer A: US1 (T016-T027)
-   - Developer B: US2 (T028-T033)
-   - Developer C: US3 (T034-T040)
-   - Developer D: US4 (T054-T059)
-   - Developer E: US5 (T060-T067)
+   - Developer A: US1 (T016-T028)
+   - Developer B: US2 (T029-T034)
+   - Developer C: US3 (T035-T041)
+   - Developer D: US4 (T055-T060)
+   - Developer E: US5 (T061-T068)
    - Time: ~4 days, 8+ hours/day each
 
 3. **Days 6-7**: Polish + validation
-   - Phase N polish (T041-T053)
+   - Phase N polish (T042-T054)
    - Performance tuning, docs
    - Time: ~2 days
 
@@ -897,27 +908,27 @@ Recommended for fastest MVP delivery:
    - Establish foundation
 
 2. **Developer A**: US1 Tests + Implementation (days 2-3)
-   - Focus: Contract tests (T016-T017), models (T018-T019), services (T020-T021), core engine (T022-T027)
+   - Focus: Contract tests (T016-T018), models (T019-T020), services (T021-T022), core engine (T023-T028)
    - Delivers: Working RuleEngine that others depend on
 
 3. **Developer B**: US2 Tests + Implementation (starts day 3, after US1 tests pass)
-   - Focus: Priority resolution tests (T028-T029), selector service (T030), engine update (T031)
+   - Focus: Priority resolution tests (T029-T030), selector service (T031), engine update (T032)
    - Depends on: A's work (RuleEngine.evaluate)
 
 4. **Developer C**: US3 Tests + Implementation (starts day 3, parallel to B)
-   - Focus: Audit logging tests (T034-T035), audit service (T036), engine integration (T037)
+   - Focus: Audit logging tests (T035-T036), audit service (T037), engine integration (T038)
    - Depends on: A's work (RuleEngine.evaluate)
 
 5. **Developer D**: US4 Tests + Implementation (starts day 3, parallel to B & C)
-   - Focus: Batch tests (T054-T055), batch classifier (T056), CLI script (T057)
+   - Focus: Batch tests (T055-T056), batch classifier (T057), CLI script (T058)
    - Depends on: A's work (RuleEngine.evaluate)
 
 6. **Developer E**: US5 Tests + Implementation (starts day 3, parallel to B, C, & D)
-   - Focus: CSV tests (T060-T061), CSV classifier (T062), CLI script (T063), sample files (T067)
+   - Focus: CSV tests (T061-T062), CSV classifier (T063), CLI script (T064), sample files (T068)
    - Depends on: A's work (RuleEngine.evaluate)
 
 7. **All**: Polish + Validation (days 5-6)
-   - Phase N tasks (T041-T053)
+   - Phase N tasks (T042-T054)
    - Docs, performance, final testing
    - Deployment readiness
 

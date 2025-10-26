@@ -1,78 +1,78 @@
-# Classifier v2: Rule Engine Core
+# Classifier v2: Motor de Regras Orientado a Dados
 
-A data-driven product classification system with flexible rule evaluation, priority resolution, and comprehensive audit logging.
+Um sistema de classificação de produtos orientado a dados com avaliação flexível de regras, resolução de prioridades e auditoria abrangente.
 
-## Overview
+## Visão Geral
 
-**Classifier v2** moves classification logic from hardcoded Python rules to a database-driven architecture. Rules are stored in the database (`regras_de_classificacao` table), allowing non-technical users to manage classifications without code changes.
+**Classifier v2** move a lógica de classificação de regras Python codificadas para uma arquitetura orientada por banco de dados. As regras são armazenadas no banco de dados (tabela `regras_de_classificacao`), permitindo que usuários não-técnicos gerenciem classificações sem alterações no código.
 
-### Key Features
+### Características Principais
 
-- **Data-Driven Rule Evaluation**: Rules defined in database, not code
-- **Priority-Based Conflict Resolution**: Multiple matching rules always resolve consistently
-- **Comprehensive Audit Logging**: Full traceability of all classification decisions
-- **Batch Processing**: Classify multiple products from database with one command
-- **CSV Import/Export**: Support for spreadsheet-based workflows
-- **Flexible Criteria Matching**: Keywords, NCM patterns, size/quantity ranges
+- **Avaliação de Regras Orientada a Dados**: Regras definidas no banco de dados, não no código
+- **Resolução de Conflitos Baseada em Prioridade**: Múltiplas regras correspondentes sempre se resolvem consistentemente
+- **Auditoria Abrangente**: Rastreabilidade completa de todas as decisões de classificação
+- **Processamento em Lote**: Classifique múltiplos produtos do banco de dados com um comando
+- **Importação/Exportação CSV**: Suporte para fluxos de trabalho baseados em planilhas
+- **Correspondência Flexível de Critérios**: Palavras-chave, padrões NCM, intervalos de tamanho/quantidade
 
-## Architecture
+## Arquitetura
 
 ```
 RuleEngine (Python)
-    ├── Matcher (criteria matching)
-    ├── Evaluator (rule selection)
-    └── AuditLog (decision logging)
+    ├── Matcher (correspondência de critérios)
+    ├── Evaluator (seleção de regra)
+    └── AuditLog (registro de decisões)
          ↓
     PostgreSQL Database
-    ├── regras_de_classificacao (rules table)
-    ├── auditoria_classificacao (audit log)
-    └── criterios_palavras_chave (keyword index)
+    ├── regras_de_classificacao (tabela de regras)
+    ├── auditoria_classificacao (log de auditoria)
+    └── criterios_palavras_chave (índice de palavras-chave)
 ```
 
-## Quick Start
+## Início Rápido
 
-### Installation
+### Instalação
 
 ```bash
-# Clone repository
+# Clonar repositório
 git clone <repository-url>
 cd classifier-rules
 
-# Create virtual environment
+# Criar ambiente virtual
 python3.8+ -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # No Windows: venv\Scripts\activate
 
-# Install dependencies
+# Instalar dependências
 pip install -r requirements.txt
-pip install -e .  # Install package in development mode
+pip install -e .  # Instalar pacote em modo desenvolvimento
 ```
 
-### Configuration
+### Configuração
 
 ```bash
-# Copy example environment file
+# Copiar arquivo de ambiente exemplo
 cp .env.example .env
 
-# Edit .env with your database credentials
+# Editar .env com suas credenciais de banco de dados
 # DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT
 ```
 
-### Database Setup
+### Configuração do Banco de Dados
 
 ```bash
-# Initialize database (creates tables and migrations)
+# Inicializar banco de dados (cria tabelas e migrações)
 python -c "from classifier.utils import init_database; init_database()"
 ```
 
-### First Classification
+### Primeira Classificação
 
 ```python
 from classifier.engine import RuleEngine
 
-# Create engine instance
+# Criar instância do engine
 engine = RuleEngine()
 
-# Classify a product
+# Classificar um produto
 product = {
     "id": "P001",
     "description": "laptop computer",
@@ -83,12 +83,12 @@ product = {
 
 result = engine.evaluate(product)
 print(result)
-# Output: {'classification': 'ELECTRONICS', 'rule_id': 1, 'priority': 100, ...}
+# Saída: {'classification': 'ELETRÔNICOS', 'rule_id': 1, 'priority': 100, ...}
 ```
 
-## Usage
+## Uso
 
-### Basic Rule Evaluation (US1)
+### Avaliação Básica de Regra (US1)
 
 ```python
 engine = RuleEngine()
@@ -96,104 +96,104 @@ product = {"id": "P001", "description": "laptop", "ncm": "84713090"}
 result = engine.evaluate(product)
 ```
 
-### Batch Classification from Database (US4)
+### Classificação em Lote a partir do Banco de Dados (US4)
 
 ```bash
-# Classify 500 unclassified products
+# Classificar 500 produtos não classificados
 python -m classifier.cli.classify_batch -500
 
-# With custom filters
+# Com filtros personalizados
 python -m classifier.cli.classify_batch -1000 --offset 100
 ```
 
-### CSV Classification (US5)
+### Classificação CSV (US5)
 
 ```bash
-# Simple CSV classification
+# Classificação CSV simples
 python -m classifier.cli.classify_csv \
-  --input productos.csv \
-  --output result.csv
+  --input produtos.csv \
+  --output resultado.csv
 
-# With audit trail
+# Com trilha de auditoria
 python -m classifier.cli.classify_csv \
-  --input productos.csv \
-  --output result.csv \
-  --audit audit.csv
+  --input produtos.csv \
+  --output resultado.csv \
+  --audit auditoria.csv
 
-# Also update database
+# Também atualizar banco de dados
 python -m classifier.cli.classify_csv \
-  --input productos.csv \
-  --output result.csv \
+  --input produtos.csv \
+  --output resultado.csv \
   --update-db
 ```
 
-## Documentation
+## Documentação
 
-- **[Specification](specs/001-rule-engine/spec.md)**: Complete feature specification with 5 user stories
-- **[Implementation Plan](specs/001-rule-engine/plan.md)**: Technical architecture and project structure
-- **[Data Model](specs/001-rule-engine/data-model.md)**: Database schema and entity relationships
-- **[CSV Guide](specs/001-rule-engine/CSV_CLARIFICATION.md)**: CSV modes and storage locations
-- **[Quickstart](specs/001-rule-engine/quickstart.md)**: Detailed setup and usage guide
+- **[Especificação](specs/001-rule-engine/spec.md)**: Especificação completa de recursos com 5 histórias de usuário
+- **[Plano de Implementação](specs/001-rule-engine/plan.md)**: Arquitetura técnica e estrutura do projeto
+- **[Modelo de Dados](specs/001-rule-engine/data-model.md)**: Esquema de banco de dados e relacionamentos entre entidades
+- **[Guia CSV](specs/001-rule-engine/CSV_CLARIFICATION.md)**: Modos CSV e locais de armazenamento
+- **[Guia de Início Rápido](specs/001-rule-engine/quickstart.md)**: Guia detalhado de configuração e uso
 
-## Testing
+## Testes
 
 ```bash
-# Run all tests
+# Executar todos os testes
 pytest
 
-# Run with coverage
+# Executar com cobertura
 pytest --cov=src/classifier tests/
 
-# Run specific test file
+# Executar arquivo de teste específico
 pytest tests/unit/test_matcher.py
 
-# Run tests matching pattern
+# Executar testes que correspondem ao padrão
 pytest -k "test_priority" -v
 ```
 
-## Project Structure
+## Estrutura do Projeto
 
 ```
 .
 ├── src/classifier/
-│   ├── __init__.py          # Exception classes
-│   ├── models.py            # Data models (Rule, Product, etc)
-│   ├── engine.py            # Core RuleEngine class
-│   ├── evaluator.py         # Rule evaluation logic
-│   ├── matcher.py           # Criteria matching
-│   ├── audit.py             # Audit logging service
-│   ├── utils.py             # Config and database utilities
+│   ├── __init__.py          # Classes de exceção
+│   ├── models.py            # Modelos de dados (Rule, Product, etc)
+│   ├── engine.py            # Classe RuleEngine principal
+│   ├── evaluator.py         # Lógica de avaliação de regra
+│   ├── matcher.py           # Correspondência de critérios
+│   ├── audit.py             # Serviço de log de auditoria
+│   ├── utils.py             # Utilitários de configuração e banco de dados
 │   └── cli/
-│       ├── classify_batch.py     # Batch classification script
-│       ├── classify_csv.py       # CSV import/export script
-│       └── export_batch.py       # Database export script
+│       ├── classify_batch.py     # Script de classificação em lote
+│       ├── classify_csv.py       # Script de importação/exportação CSV
+│       └── export_batch.py       # Script de exportação de banco de dados
 ├── tests/
-│   ├── conftest.py          # Pytest fixtures
-│   ├── contract/            # API contract tests
-│   ├── integration/         # End-to-end tests
-│   └── unit/                # Component tests
-├── migrations/              # Database migrations
+│   ├── conftest.py          # Fixtures do Pytest
+│   ├── contract/            # Testes de contrato da API
+│   ├── integration/         # Testes ponta-a-ponta
+│   └── unit/                # Testes de componentes
+├── migrations/              # Migrações de banco de dados
 │   ├── 001_create_tables.sql
 │   ├── 002_create_indexes.sql
 │   └── ROLLBACK.md
-├── docs/                    # Documentation
-├── specs/                   # Feature specifications
-├── input/                   # Input CSV files
-├── output/                  # Output files
-├── setup.py                 # Package configuration
-└── requirements.txt         # Dependencies
+├── docs/                    # Documentação
+├── specs/                   # Especificações de recursos
+├── input/                   # Arquivos CSV de entrada
+├── output/                  # Arquivos de saída
+├── setup.py                 # Configuração de pacote
+└── requirements.txt         # Dependências
 ```
 
-## Database Schema
+## Esquema de Banco de Dados
 
-### regras_de_classificacao (Rules)
+### regras_de_classificacao (Regras)
 ```sql
 id              | SERIAL PRIMARY KEY
-prioridade      | INTEGER (higher = more important)
-nome            | VARCHAR (rule name)
-ativo           | BOOLEAN (enabled/disabled)
-criterio_palavras_chave     | VARCHAR (keywords to match)
-criterio_ncm    | VARCHAR (NCM pattern with *)
+prioridade      | INTEGER (maior = mais importante)
+nome            | VARCHAR (nome da regra)
+ativo           | BOOLEAN (ativo/inativo)
+criterio_palavras_chave     | VARCHAR (palavras-chave para correspondência)
+criterio_ncm    | VARCHAR (padrão NCM com *)
 criterio_tamanho_min | FLOAT
 criterio_tamanho_max | FLOAT
 criterio_quantidade_min | INT
@@ -203,7 +203,7 @@ data_criacao    | TIMESTAMP
 data_atualizacao | TIMESTAMP
 ```
 
-### auditoria_classificacao (Audit Log)
+### auditoria_classificacao (Log de Auditoria)
 ```sql
 id              | SERIAL PRIMARY KEY
 id_regra        | INTEGER FOREIGN KEY
@@ -215,126 +215,126 @@ data_classificacao | TIMESTAMP
 tempo_avaliacao_ms | INTEGER
 ```
 
-## Configuration
+## Configuração
 
-### Environment Variables
+### Variáveis de Ambiente
 
-| Variable | Required | Default | Description |
+| Variável | Obrigatória | Padrão | Descrição |
 |----------|----------|---------|-------------|
-| `DB_HOST` | Yes | - | PostgreSQL server hostname |
-| `DB_NAME` | Yes | - | Database name |
-| `DB_USER` | Yes | - | Database user |
-| `DB_PASSWORD` | Yes | - | Database password |
-| `DB_PORT` | No | 5432 | PostgreSQL port |
-| `APP_LOG_LEVEL` | No | INFO | Logging level |
-| `ENABLE_RULE_CACHING` | No | true | Cache rules in memory |
+| `DB_HOST` | Sim | - | Nome do servidor PostgreSQL |
+| `DB_NAME` | Sim | - | Nome do banco de dados |
+| `DB_USER` | Sim | - | Usuário do banco de dados |
+| `DB_PASSWORD` | Sim | - | Senha do banco de dados |
+| `DB_PORT` | Não | 5432 | Porta PostgreSQL |
+| `APP_LOG_LEVEL` | Não | INFO | Nível de log |
+| `ENABLE_RULE_CACHING` | Não | true | Cache de regras em memória |
 
-## Development
+## Desenvolvimento
 
-### Running Tests
+### Executando Testes
 
 ```bash
-# All tests
+# Todos os testes
 pytest
 
-# Specific test file
+# Arquivo de teste específico
 pytest tests/unit/test_matcher.py -v
 
-# With coverage report
+# Com relatório de cobertura
 pytest --cov=src/classifier --cov-report=html
 
-# Performance tests
+# Testes de performance
 pytest tests/performance/ -v
 ```
 
-### Code Style
+### Estilo de Código
 
 ```bash
-# Format code with black
+# Formatar código com black
 black src/ tests/
 
-# Check code with flake8
+# Verificar código com flake8
 flake8 src/ tests/
 
-# Type checking with mypy
+# Verificação de tipo com mypy
 mypy src/
 ```
 
-## Performance Targets
+## Metas de Desempenho
 
-- **Rule Evaluation**: < 500ms for 95th percentile with 10,000 active rules
-- **Batch Processing**: 500 products in < 5 minutes
-- **CSV Processing**: 50,000 rows in < 10 minutes
-- **Audit Logging**: 100% completeness for all classifications
+- **Avaliação de Regra**: < 500ms para 95º percentil com 10.000 regras ativas
+- **Processamento em Lote**: 500 produtos em < 5 minutos
+- **Processamento CSV**: 50.000 linhas em < 10 minutos
+- **Log de Auditoria**: 100% de completude para todas as classificações
 
-## Troubleshooting
+## Solução de Problemas
 
-### Database Connection Issues
+### Problemas de Conexão com Banco de Dados
 
 ```python
 from classifier.utils import get_db_connection
 try:
     conn = get_db_connection()
 except DatabaseError as e:
-    print(f"Connection failed: {e}")
+    print(f"Falha na conexão: {e}")
 ```
 
-### No Rules Match
+### Nenhuma Regra Corresponde
 
 ```python
 result = engine.evaluate(product)
 if result['classification'] == 'NO_MATCH':
-    print(f"Product {product['id']} did not match any rules")
-    # Check audit logs for attempted matching
+    print(f"Produto {product['id']} não correspondeu a nenhuma regra")
+    # Verificar logs de auditoria para tentativas de correspondência
 ```
 
-### CSV Encoding Issues
+### Problemas de Codificação CSV
 
-Ensure CSV files are UTF-8 encoded:
+Certifique-se de que os arquivos CSV estejam codificados em UTF-8:
 
 ```bash
-# Convert CSV to UTF-8 if needed
-iconv -f ISO-8859-1 -t UTF-8 input.csv > input_utf8.csv
+# Converter CSV para UTF-8 se necessário
+iconv -f ISO-8859-1 -t UTF-8 entrada.csv > entrada_utf8.csv
 ```
 
-## Contributing
+## Contribuindo
 
-1. Create feature branch from `main`
-2. Follow the specification in `specs/001-rule-engine/spec.md`
-3. Write tests first (TDD approach)
-4. Ensure all tests pass: `pytest`
-5. Follow code style: `black` and `flake8`
-6. Create pull request with description
+1. Criar branch de recurso a partir de `main`
+2. Seguir a especificação em `specs/001-rule-engine/spec.md`
+3. Escrever testes primeiro (abordagem TDD)
+4. Garantir que todos os testes passem: `pytest`
+5. Seguir estilo de código: `black` e `flake8`
+6. Criar pull request com descrição
 
-## License
+## Licença
 
-[Your License Here]
+[Sua Licença Aqui]
 
-## Support
+## Suporte
 
-For issues, questions, or suggestions:
-- Check the [Specification](specs/001-rule-engine/spec.md)
-- Review the [Quickstart Guide](specs/001-rule-engine/quickstart.md)
-- Open an issue on GitHub
+Para problemas, dúvidas ou sugestões:
+- Verifique a [Especificação](specs/001-rule-engine/spec.md)
+- Revise o [Guia de Início Rápido](specs/001-rule-engine/quickstart.md)
+- Abra uma issue no GitHub
 
-## Roadmap
+## Roteiro
 
-### Phase 1: MVP (User Stories 1-3)
-- ✓ Basic rule evaluation
-- ✓ Priority resolution
-- ✓ Audit logging
+### Fase 1: MVP (Histórias de Usuário 1-3)
+- ✓ Avaliação básica de regra
+- ✓ Resolução de prioridade
+- ✓ Log de auditoria
 
-### Phase 2: Scripting (User Stories 4-5)
-- ⏳ Batch classification from database
-- ⏳ CSV import/export support
+### Fase 2: Scripts (Histórias de Usuário 4-5)
+- ⏳ Classificação em lote a partir do banco de dados
+- ⏳ Suporte de importação/exportação CSV
 
-### Phase 3: Polish & Deployment
-- ⏳ Performance optimization
-- ⏳ Comprehensive documentation
-- ⏳ Production deployment guide
+### Fase 3: Polimento e Implantação
+- ⏳ Otimização de desempenho
+- ⏳ Documentação abrangente
+- ⏳ Guia de implantação em produção
 
 ---
 
-**Last Updated**: 2025-10-25
-**Version**: 0.1.0-alpha
-**Status**: In Development
+**Última Atualização**: 2025-10-25
+**Versão**: 0.1.0-alpha
+**Status**: Em Desenvolvimento
