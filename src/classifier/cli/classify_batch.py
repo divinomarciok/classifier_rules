@@ -79,11 +79,28 @@ def format_statistics(stats: dict) -> str:
         "BATCH CLASSIFICATION STATISTICS",
         "=" * 60,
         f"Total Products:      {stats['total_products']:,}",
-        f"Classified:          {stats['classified']:,}",
-        f"Unclassified:        {stats['unclassified']:,}",
-        f"Classification Rate: {stats['classification_rate']:.1%}",
-        "=" * 60 + "\n"
     ]
+
+    # Show breakdown by status if available
+    if 'by_status' in stats:
+        lines.append(f"\nStatus Breakdown:")
+        matched = stats['by_status'].get('matched', 0)
+        pending = stats['by_status'].get('pending', 0)
+        no_match = stats['by_status'].get('no_match', 0)
+        unknown = stats['by_status'].get('unknown', 0)
+
+        lines.append(f"  - Matched:       {matched:>6,} products")
+        lines.append(f"  - Pending:       {pending:>6,} products (never attempted)")
+        lines.append(f"  - No Match:      {no_match:>6,} products (attempted, no rules)")
+        if unknown > 0:
+            lines.append(f"  - Unknown:       {unknown:>6,} products")
+    else:
+        # Fallback for older statistics format
+        lines.append(f"Classified:          {stats.get('matched', 0):,}")
+        lines.append(f"Unclassified:        {stats.get('pending', 0):,}")
+
+    lines.append(f"\nClassification Rate: {stats.get('classification_rate', 0):.1%}")
+    lines.append("=" * 60 + "\n")
     return "\n".join(lines)
 
 
