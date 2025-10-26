@@ -20,7 +20,7 @@ class TestRuleModel:
             prioridade=100,
             nome="Test Rule",
             ativo=True,
-            resultado_classificacao="ELECTRONICS",
+            categoria_id=1,
             criterio_palavras_chave="laptop,computer"
         )
 
@@ -28,7 +28,7 @@ class TestRuleModel:
         assert rule.prioridade == 100
         assert rule.nome == "Test Rule"
         assert rule.ativo is True
-        assert rule.resultado_classificacao == "ELECTRONICS"
+        assert rule.categoria_id == 1
         assert rule.criterio_palavras_chave == "laptop,computer"
 
     def test_rule_from_db_row(self):
@@ -37,7 +37,7 @@ class TestRuleModel:
         Database returns row as tuple in this order:
         (id, prioridade, nome, ativo, criterio_palavras_chave, criterio_ncm,
          criterio_tamanho_min, criterio_tamanho_max, criterio_quantidade_min,
-         criterio_quantidade_max, criterio_categoria, resultado_classificacao,
+         criterio_quantidade_max, criterio_categoria, categoria_id,
          data_criacao, data_atualizacao)
         """
         now = datetime.now()
@@ -53,7 +53,7 @@ class TestRuleModel:
             1,  # criterio_quantidade_min
             100,  # criterio_quantidade_max
             "ELECTRONICS",  # criterio_categoria
-            "ELECTRONICS",  # resultado_classificacao
+            1,  # categoria_id (FK to categorias)
             now,  # data_criacao
             now,  # data_atualizacao
         )
@@ -65,19 +65,19 @@ class TestRuleModel:
         assert rule.nome == "Test Rule"
         assert rule.ativo is True
         assert rule.criterio_palavras_chave == "laptop,computer"
-        assert rule.resultado_classificacao == "ELECTRONICS"
+        assert rule.categoria_id == 1
 
     def test_rule_is_active(self):
         """Test Rule.is_active() method"""
         active_rule = Rule(
             id=1, prioridade=10, nome="Active", ativo=True,
-            resultado_classificacao="TEST"
+            categoria_id=1
         )
         assert active_rule.is_active() is True
 
         inactive_rule = Rule(
             id=2, prioridade=10, nome="Inactive", ativo=False,
-            resultado_classificacao="TEST"
+            categoria_id=1
         )
         assert inactive_rule.is_active() is False
 
@@ -85,7 +85,7 @@ class TestRuleModel:
         """Test Rule string representation"""
         rule = Rule(
             id=42, prioridade=50, nome="Sample Rule", ativo=True,
-            resultado_classificacao="TEST"
+            categoria_id=1
         )
         repr_str = repr(rule)
 
@@ -96,9 +96,9 @@ class TestRuleModel:
 
     def test_rule_equality(self):
         """Test Rule equality based on ID"""
-        rule1 = Rule(id=1, prioridade=10, nome="A", ativo=True, resultado_classificacao="X")
-        rule2 = Rule(id=1, prioridade=20, nome="B", ativo=False, resultado_classificacao="Y")
-        rule3 = Rule(id=2, prioridade=10, nome="A", ativo=True, resultado_classificacao="X")
+        rule1 = Rule(id=1, prioridade=10, nome="A", ativo=True, categoria_id=1)
+        rule2 = Rule(id=1, prioridade=20, nome="B", ativo=False, categoria_id=2)
+        rule3 = Rule(id=2, prioridade=10, nome="A", ativo=True, categoria_id=1)
 
         assert rule1 == rule2, "Rules with same ID should be equal"
         assert rule1 != rule3, "Rules with different IDs should not be equal"
