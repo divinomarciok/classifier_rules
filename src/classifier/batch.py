@@ -96,19 +96,36 @@ class BatchClassifier:
 
             for item in results:
                 if item['result'].success:
-                    matched_count += 1
                     classification = item['result'].classification
-                    classifications[classification] = classifications.get(classification, 0) + 1
 
-                    # Update database if requested
-                    if update_db:
-                        self._update_product_classification(
-                            item['product_id'],
-                            item['result'].classification
+                    # Check if this is a NO_MATCH result
+                    if classification == 'NO_MATCH':
+                        # Product with no matching rules
+                        no_match_count += 1
+                        no_match_products.append(item['product_id'])
+
+                        # IMPORTANT: Do NOT update database for NO_MATCH products
+                        # They remain with status='pending' so they can be reprocessed
+                        # when new rules are added
+                        logger.debug(
+                            f"Product {item['product_id']} has no matching rules. "
+                            f"Status remains 'pending' for future reprocessing."
                         )
+                    else:
+                        # Product matched a rule - update database
+                        matched_count += 1
+                        classifications[classification] = classifications.get(classification, 0) + 1
+
+                        # Update database if requested (only for matches, not NO_MATCH)
+                        if update_db:
+                            self._update_product_classification(
+                                item['product_id'],
+                                item['result'].classification
+                            )
                 else:
                     no_match_count += 1
                     no_match_products.append(item['product_id'])
+                    logger.warning(f"Product {item['product_id']} evaluation failed (success=False)")
 
             # 4. Compute statistics
             elapsed_ms = (time.time() - start_time) * 1000
@@ -142,7 +159,10 @@ class BatchClassifier:
         offset: int,
         where_clause: Optional[str] = None
     ) -> List[tuple]:
-        """Query database for unclassified products
+        """Query database for products pending classification
+
+        Queries for products with status='pending' (never attempted classification).
+        Products with no_match status are NOT reprocessed unless explicitly requested.
 
         Args:
             limit: Number of rows to fetch
@@ -155,8 +175,11 @@ class BatchClassifier:
         try:
             cursor = self.db_connection.cursor()
 
-            # Build query for unclassified products
-            query = "SELECT * FROM produtos_tabela WHERE categoria IS NULL"
+            # Build query for pending products (never classified)
+            # Products with status='pending' have never been processed
+            # Products with status='no_match' were attempted but no rules matched
+            # We only process 'pending' to avoid reprocessing infinitely
+            query = "SELECT * FROM produtos_tabela WHERE status_classificacao = 'pending'"
 
             if where_clause:
                 query += f" AND {where_clause}"
@@ -168,7 +191,7 @@ class BatchClassifier:
             rows = cursor.fetchall()
             cursor.close()
 
-            logger.debug(f"Queried {len(rows)} unclassified products")
+            logger.debug(f"Queried {len(rows)} pending products for classification")
             return rows
 
         except Exception as e:
@@ -241,29 +264,57 @@ class BatchClassifier:
         """Get overall batch processing statistics
 
         Useful for monitoring progress across multiple batch runs.
+        Breaks down products by status:
+        - 'pending': Never attempted classification
+        - 'matched': Has categoria assigned
+        - 'no_match': Attempted classification but no rules matched
 
         Returns:
-            dict: Aggregate statistics
+            dict: Aggregate statistics by status
         """
         try:
             cursor = self.db_connection.cursor()
 
-            # Count classified vs unclassified
-            cursor.execute("SELECT COUNT(*) FROM produtos_tabela WHERE categoria IS NOT NULL")
-            classified_count = cursor.fetchone()[0]
+            # Count by status (if column exists)
+            try:
+                cursor.execute("""
+                    SELECT
+                        COALESCE(status_classificacao, 'unknown') as status,
+                        COUNT(*) as count
+                    FROM produtos_tabela
+                    GROUP BY status_classificacao
+                """)
+                status_counts = {row[0]: row[1] for row in cursor.fetchall()}
+            except Exception:
+                # Fallback if status_classificacao column doesn't exist yet
+                logger.warning("status_classificacao column not found, using fallback query")
+                cursor.execute("SELECT COUNT(*) FROM produtos_tabela WHERE categoria IS NOT NULL")
+                classified_count = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM produtos_tabela WHERE categoria IS NULL")
-            unclassified_count = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM produtos_tabela WHERE categoria IS NULL")
+                unclassified_count = cursor.fetchone()[0]
 
-            total_count = classified_count + unclassified_count
+                status_counts = {
+                    'matched': classified_count,
+                    'pending': unclassified_count
+                }
+
+            # Count totals
+            total_count = sum(status_counts.values())
+            matched_count = status_counts.get('matched', 0)
+            pending_count = status_counts.get('pending', 0)
+            no_match_count = status_counts.get('no_match', 0)
 
             cursor.close()
 
             statistics = {
                 'total_products': total_count,
-                'classified': classified_count,
-                'unclassified': unclassified_count,
-                'classification_rate': classified_count / total_count if total_count > 0 else 0.0,
+                'by_status': status_counts,
+                'matched': matched_count,
+                'pending': pending_count,
+                'no_match': no_match_count,
+                'classification_rate': matched_count / total_count if total_count > 0 else 0.0,
+                'note': 'pending=never attempted, matched=has categoria, no_match=no rules matched'
             }
 
             return statistics
