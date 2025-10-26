@@ -5,9 +5,31 @@
 
 ---
 
-## 📖 Três Documentos Principais
+## 📖 Documentos Disponíveis
 
-### 1. 📋 [RULE_UPDATE_PROCESS.md](RULE_UPDATE_PROCESS.md)
+### 1. 🔄 [DATABASE_MIGRATION_GUIDE.md](DATABASE_MIGRATION_GUIDE.md)
+**Para quando você precisa trocar de banco de dados ou alterar a estrutura de tabelas**
+
+**Conteúdo:**
+- Como trocar nome de tabela
+- Como renomear colunas
+- Como trocar de banco de dados (PostgreSQL → MySQL, etc)
+- Quais arquivos alterar
+- Passo a passo para cada cenário
+- Matriz de mudanças por cenário
+- Testes para validar migração
+
+**Leia quando:**
+- ✅ Precisa trocar de banco de dados
+- ✅ A tabela `produtos_tabela` tem outro nome
+- ✅ Os nomes de coluna são diferentes
+- ✅ Quer entender a flexibilidade do sistema
+
+**Tempo de leitura:** 10-15 minutos
+
+---
+
+### 2. 📋 [RULE_UPDATE_PROCESS.md](RULE_UPDATE_PROCESS.md)
 **Para entender o processo completo**
 
 **Conteúdo:**
@@ -28,7 +50,7 @@
 
 ---
 
-### 2. 🐛 [RULE_ERRORS_CATALOG.md](RULE_ERRORS_CATALOG.md)
+### 3. 🐛 [RULE_ERRORS_CATALOG.md](RULE_ERRORS_CATALOG.md)
 **Para ver erros já encontrados e corrigidos**
 
 **Conteúdo:**
@@ -50,7 +72,7 @@
 
 ---
 
-### 3. ⚡ [QUICK_RULE_VALIDATION.md](QUICK_RULE_VALIDATION.md)
+### 4. ⚡ [QUICK_RULE_VALIDATION.md](QUICK_RULE_VALIDATION.md)
 **Para reportar erros rapidinho**
 
 **Conteúdo:**
@@ -136,21 +158,29 @@
 
 ## 📊 Matriz de Documentos
 
-|  | QUICK | CATALOG | PROCESS |
-|---|-------|---------|---------|
-| **Tempo** | 5 min | 15 min | 20 min |
-| **Reportar erro** | ✅ | - | - |
-| **Entender processo** | - | - | ✅ |
-| **Ver exemplos** | - | ✅ | ✅ |
-| **Técnico** | - | - | ✅ |
-| **Padrões dataset** | - | ✅ | - |
-| **Status rules** | - | - | ✅ |
+|  | MIGRATION | QUICK | CATALOG | PROCESS |
+|---|-----------|-------|---------|---------|
+| **Tempo** | 12 min | 5 min | 15 min | 20 min |
+| **Trocar banco dados** | ✅ | - | - | - |
+| **Renomear tabela/coluna** | ✅ | - | - | - |
+| **Reportar erro** | - | ✅ | - | - |
+| **Entender processo** | - | - | - | ✅ |
+| **Ver exemplos** | - | - | ✅ | ✅ |
+| **Técnico** | ✅ | - | - | ✅ |
+| **Padrões dataset** | - | - | ✅ | - |
+| **Status rules** | - | - | - | ✅ |
 
 ---
 
 ## 🔗 Links Rápidos
 
 ### Por Documento
+
+- **[DATABASE_MIGRATION_GUIDE.md](DATABASE_MIGRATION_GUIDE.md)** - Migração de banco
+  - [Trocar nome de tabela](DATABASE_MIGRATION_GUIDE.md#cenário-1-trocar-nome-da-tabela-de-produtos_tabela-para-produtos)
+  - [Alterar nomes de coluna](DATABASE_MIGRATION_GUIDE.md#cenário-2-alterar-nomes-de-colunas)
+  - [Trocar de banco de dados](DATABASE_MIGRATION_GUIDE.md#cenário-3-trocar-de-postgresql-para-outro-banco-ex-mysql)
+  - [Verificação rápida](DATABASE_MIGRATION_GUIDE.md#-verificação-rápida-quais-colunas-o-código-espera)
 
 - **[RULE_UPDATE_PROCESS.md](RULE_UPDATE_PROCESS.md)** - Processo completo
   - [Exemplo Real: Danone Banana](RULE_UPDATE_PROCESS.md#-exemplo-real-caso-danone-banana)
@@ -179,10 +209,16 @@
 2. Depois **RULE_UPDATE_PROCESS.md** (20 min)
 3. Se quiser mais detalhes, **RULE_ERRORS_CATALOG.md** (15 min)
 
+### Se precisa trocar banco de dados:
+1. Leia **DATABASE_MIGRATION_GUIDE.md** (12 min)
+2. Identifique seu cenário (trocar tabela, coluna ou banco)
+3. Siga o passo a passo
+
 ### Se já conhece o processo:
 - **QUICK_RULE_VALIDATION.md** sempre à mão
 - Consulte **RULE_UPDATE_PROCESS.md** para referência técnica
 - Consulte **RULE_ERRORS_CATALOG.md** quando encontrar padrão novo
+- Consulte **DATABASE_MIGRATION_GUIDE.md** para mudanças estruturais
 
 ### Se está com pressa:
 - Abra **QUICK_RULE_VALIDATION.md**
@@ -200,6 +236,7 @@
 - ✅ Como corrigir regras
 - ✅ Padrões de erro comuns
 - ✅ Padrões no dataset de 79k produtos
+- ✅ Arquitetura flexível para diferentes bancos
 
 ### Procedimentos
 - ✅ Como reportar erro (30 segundos)
@@ -207,6 +244,8 @@
 - ✅ Como corrigir regra (técnico)
 - ✅ Como validar correção (verificação)
 - ✅ Como criar regra nova (INSERT)
+- ✅ Como trocar de banco de dados
+- ✅ Como renomear tabelas/colunas
 
 ### Referência
 - ✅ Estado atual de cada regra
@@ -214,11 +253,13 @@
 - ✅ Matriz de categorias
 - ✅ Checklist de validação
 - ✅ Dicas e pegadinhas
+- ✅ Quais arquivos alterar para migração
+- ✅ Passo a passo para cada cenário
 
 ### O Que NÃO Está Documentado
 - ❌ Como usar pgAdmin (veja QUICK_START.md)
-- ❌ Como rodar batch classification (veja MIGRATION_AND_TEST_GUIDE.md)
-- ❌ Arquitetura geral do projeto (veja CLAUDE.md)
+- ❌ Como rodar batch classification (veja SETUP.md)
+- ❌ Arquitetura geral do projeto (veja CLAUDE_INSTRUCTIONS.md)
 - ❌ Schema do banco (veja migrations/)
 
 ---
