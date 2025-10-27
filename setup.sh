@@ -42,12 +42,13 @@ fi
 print_success "Python 3 encontrado: $(python3 --version)"
 
 if ! command -v psql &> /dev/null; then
-    print_warning "PostgreSQL não está instalado. Você precisa instalá-lo manualmente."
-    echo "   Linux: sudo apt-get install postgresql postgresql-contrib"
-    echo "   macOS: brew install postgresql"
-    exit 1
+    print_warning "PostgreSQL cliente não encontrado localmente (ok se está no Docker)"
+    echo "   Se PostgreSQL está no Docker, prossiga"
+    echo "   Se precisa instalar: sudo apt-get install postgresql-client"
+    # Não para aqui - pode estar rodando no Docker
+else
+    print_success "PostgreSQL cliente encontrado: $(psql --version)"
 fi
-print_success "PostgreSQL encontrado: $(psql --version)"
 
 # 2️⃣ Criar ambiente virtual
 print_step "Criando ambiente virtual..."
@@ -90,26 +91,32 @@ else
     print_warning "Arquivo .env já existe"
 fi
 
-# 7️⃣ Criar banco de dados (com verificação)
+# 7️⃣ Verificar banco de dados
 print_step "Verificando banco de dados..."
 DB_USER="${DB_USER:-postgres}"
 DB_NAME="${DB_NAME:-market_v1}"
 DB_HOST="${DB_HOST:-localhost}"
 
-if psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -c "SELECT 1" &>/dev/null; then
-    print_success "Banco de dados $DB_NAME encontrado"
+# Tentar conectar, mas não falhar se não conseguir (pode estar em Docker)
+if command -v psql &> /dev/null; then
+    if psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -c "SELECT 1" &>/dev/null; then
+        print_success "Banco de dados $DB_NAME encontrado"
+    else
+        print_warning "Banco de dados não acessível no momento"
+        echo "   Se PostgreSQL está no Docker:"
+        echo "   1. Certifique que o container está rodando"
+        echo "   2. Configure as credenciais no arquivo .env"
+        echo ""
+    fi
 else
-    print_warning "Banco de dados não encontrado. Você precisa criar manualmente:"
-    echo ""
-    echo "   sudo -u postgres psql"
-    echo "   CREATE DATABASE $DB_NAME;"
-    echo "   \\q"
+    print_warning "PostgreSQL cliente não disponível - pule esta verificação"
+    echo "   Certifique que o banco está acessível com as credenciais em .env"
     echo ""
 fi
 
 # 8️⃣ Rodar migrations (se banco existir)
 print_step "Verificando migrations..."
-if psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -c "SELECT 1" &>/dev/null; then
+if command -v psql &> /dev/null && psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -c "SELECT 1" &>/dev/null; then
     read -p "Deseja rodar as migrations agora? (s/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Ss]$ ]]; then
@@ -123,7 +130,13 @@ except Exception as e:
 EOF
     fi
 else
-    print_warning "Banco de dados não acessível. Pule esta etapa."
+    print_warning "Banco de dados não acessível agora"
+    echo "   Você pode rodar as migrations depois com:"
+    echo "   python3 << 'EOF'"
+    echo "   from src.classifier.utils import init_database"
+    echo "   init_database()"
+    echo "   EOF"
+    echo ""
 fi
 
 # 9️⃣ Testar conexão
