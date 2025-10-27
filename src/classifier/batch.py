@@ -83,6 +83,7 @@ class BatchClassifier:
                 result = self.engine.evaluate(product)
                 results.append({
                     'product_id': product.id,
+                    'product_description': product.description,
                     'result': result,
                     'row_data': product_row
                 })
@@ -98,18 +99,22 @@ class BatchClassifier:
                 if item['result'].success:
                     classification = item['result'].classification
                     categoria_id = item['result'].categoria_id
+                    product_description = item['product_description']
 
                     # Check if this is a NO_MATCH result
                     if classification == 'NO_MATCH':
                         # Product with no matching rules
                         no_match_count += 1
-                        no_match_products.append(item['product_id'])
+                        no_match_products.append({
+                            'id': item['product_id'],
+                            'description': product_description
+                        })
 
                         # IMPORTANT: Do NOT update database for NO_MATCH products
                         # They remain with status='pending' so they can be reprocessed
                         # when new rules are added
                         logger.debug(
-                            f"Product {item['product_id']} has no matching rules. "
+                            f"Product {item['product_id']} ({product_description}) has no matching rules. "
                             f"Status remains 'pending' for future reprocessing."
                         )
                     else:
@@ -126,8 +131,11 @@ class BatchClassifier:
                             )
                 else:
                     no_match_count += 1
-                    no_match_products.append(item['product_id'])
-                    logger.warning(f"Product {item['product_id']} evaluation failed (success=False)")
+                    no_match_products.append({
+                        'id': item['product_id'],
+                        'description': item['product_description']
+                    })
+                    logger.warning(f"Product {item['product_id']} ({item['product_description']}) evaluation failed (success=False)")
 
             # 4. Compute statistics
             elapsed_ms = (time.time() - start_time) * 1000

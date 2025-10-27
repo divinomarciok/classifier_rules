@@ -24,7 +24,9 @@
       "Bash(do echo \"✅ $f\")",
       "Bash(done)",
       "Bash(awk '{print $9, \"\"\"\"(\"\"\"\" $5 \"\"\"\")\"\"\"\"}')",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(xargs:*)",
+      "Bash(env)"
     ],
     "deny": [],
     "ask": []

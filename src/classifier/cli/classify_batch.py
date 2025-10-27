@@ -56,8 +56,12 @@ def format_summary(summary: dict) -> str:
     if summary['no_match_products']:
         lines.append(f"\nNo Match Products ({len(summary['no_match_products'])} total):")
         # Show first 10
-        for product_id in summary['no_match_products'][:10]:
-            lines.append(f"  - {product_id}")
+        for product in summary['no_match_products'][:10]:
+            # Handle both dict and string formats for backward compatibility
+            if isinstance(product, dict):
+                lines.append(f"  - {product['id']} ({product['description']})")
+            else:
+                lines.append(f"  - {product}")
         if len(summary['no_match_products']) > 10:
             lines.append(f"  ... and {len(summary['no_match_products']) - 10} more")
 

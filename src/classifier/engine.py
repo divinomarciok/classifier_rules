@@ -198,7 +198,7 @@ class RuleEngine:
 
             # 4. Handle no-match case (FR-008)
             if not matching_rules:
-                logger.info(f"No rules matched for product {product.id}")
+                logger.info(f"No rules matched for product {product.id} ({product.description})")
                 return ClassificationResult(
                     classification='NO_MATCH',
                     success=True,
@@ -236,7 +236,7 @@ class RuleEngine:
                 message=f'Matched rule {winner.id} ({winner.nome})'
             )
 
-            logger.info(f"Product {product.id} classified as {result.classification} (id={result.categoria_id}) by rule {winner.id}")
+            logger.info(f"Product {product.id} ({product.description}) classified as {result.classification} (id={result.categoria_id}) by rule {winner.id}")
 
             # 8. Log to audit table (FR-007) - delegated to caller or middleware
             # This is typically done at a higher level, but we can record here if needed
