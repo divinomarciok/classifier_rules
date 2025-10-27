@@ -78,6 +78,8 @@ Para entender melhor como funciona o processo:
 - `docs/guides/QUICK_RULE_VALIDATION.md` - Referência rápida
 - `docs/guides/RULE_ERRORS_CATALOG.md` - Exemplos de erros reais
 - `docs/guides/RULE_UPDATE_PROCESS.md` - Processo técnico completo
+  - **NEW**: Seção "🤖 Guia Técnico para IA" com passo a passo completo para adicionar novas regras
+  - Inclui fase de planejamento, criação de migration, testes e validação
 
 ---
 

@@ -18,6 +18,183 @@ Quando você identifica produtos sendo classificados em categorias erradas, o pr
 
 ---
 
+## 🤖 Guia Técnico para IA: Como Adicionar Novas Regras de Classificação
+
+**IMPORTANTE**: Siga este checklist ANTES de criar qualquer migration com novas regras.
+
+### ✅ Pré-Requisitos de Implementação
+
+1. **Entender o Formato de Palavras-Chave**
+   - ⚠️ **CRÍTICO**: Keywords são separadas por **VÍRGULA (,)**, NÃO por pipe (|)
+   - ❌ ERRADO: `'danone grego|iog. danone'`
+   - ✅ CERTO: `'danone grego,iog. danone'`
+   - O matcher em `src/classifier/matcher.py` usa `keywords.split(',')` (linha 122)
+
+2. **Entender a Estrutura de Critérios**
+   - Cada regra em `regras_de_classificacao` tem campos opcionais:
+     - `criterio_palavras_chave`: Substring case-insensitive matching (USE VÍRGULA!)
+     - `criterio_ncm`: NCM code patterns (suporta wildcard *)
+     - `criterio_tamanho_min/max`: Size range (em litros/kg)
+     - `criterio_quantidade_min/max`: Quantity range
+   - **TODOS os critérios especificados devem bater** (lógica AND)
+
+3. **Verificar a Categoria ID Correta**
+   ```sql
+   SELECT id, nome FROM categorias ORDER BY nome;
+   -- Laticínios = ID 7
+   -- Hortifrúti = ID 10
+   -- etc.
+   ```
+
+### 📝 Passo a Passo: Adicionar Novas Regras
+
+#### Fase 1: Planejamento
+```
+1. Identificar a categoria-alvo (ex: Laticínios, ID 7)
+2. Listar todas as variações do produto (ex: Danone Natural, Danone Grego, Activia, etc.)
+3. Para CADA variação, criar uma regra separada com palavras-chave específicas
+4. Definir prioridade: Variações mais específicas > Variações genéricas
+   - Danone Activia (mais específica): prioridade 130
+   - Danone Natural (média): prioridade 125
+   - Iogurte Genérico (menos específica): prioridade 110
+```
+
+#### Fase 2: Criar Migration File
+```
+1. Encontrar o número da próxima migration
+   $ ls migrations/ | grep -E '^\d+_' | sort -V | tail -1
+   → Resultado: 005_create_criterios_palavras_chave.sql
+   → Próxima: 006_add_*_rules.sql
+
+2. Criar arquivo: migrations/006_add_lacteos_danone_rules.sql
+
+3. IMPORTANTE: Adicionar comentário no topo:
+   -- NOTE: Keywords are separated by COMMA (,) NOT pipe (|)
+```
+
+#### Fase 3: Escrever SQL com Formato Correto
+```sql
+-- Template correto para cada regra:
+INSERT INTO regras_de_classificacao (
+    nome,
+    categoria_id,
+    prioridade,
+    criterio_palavras_chave,
+    ativo
+) VALUES (
+    'Nome Descritivo Regra',
+    7,                           -- Category ID
+    125,                         -- Priority (higher = more important)
+    'palavra1,palavra2,palavra3', -- COMMA-SEPARATED (MUITO IMPORTANTE!)
+    TRUE
+) ON CONFLICT (nome) DO UPDATE SET
+    criterio_palavras_chave = 'palavra1,palavra2,palavra3',
+    prioridade = 125,
+    data_atualizacao = CURRENT_TIMESTAMP;
+```
+
+#### Fase 4: Atualizar Utilitários
+```
+1. Editar: src/classifier/utils.py
+2. Função: init_database() (linha ~214)
+3. Adicionar a nova migration ao pattern:
+
+   ANTES:
+   if f.name.startswith(('001_', '002_', '003_', '004_', '005_'))
+
+   DEPOIS:
+   if f.name.startswith(('001_', '002_', '003_', '004_', '005_', '006_'))
+```
+
+#### Fase 5: Executar Migration
+```python
+from src.classifier.utils import get_db_connection
+from pathlib import Path
+
+conn = get_db_connection()
+cursor = conn.cursor()
+
+migration_file = Path('migrations/006_add_lacteos_danone_rules.sql')
+with open(migration_file) as f:
+    sql = f.read()
+
+cursor.execute(sql)
+conn.commit()
+cursor.close()
+conn.close()
+
+print('✓ Migration executed!')
+```
+
+#### Fase 6: Testar ANTES de Validar
+```python
+# TESTE 1: Verificar se regras foram inseridas
+from src.classifier.engine import RuleEngine
+from src.classifier.utils import get_db_connection
+
+conn = get_db_connection()
+engine = RuleEngine(db_connection=conn, cache_rules=False)
+rules = engine.get_rules(active_only=True)
+danone_rules = [r for r in rules if 'danone' in r.nome.lower()]
+print(f'Found {len(danone_rules)} Danone rules')
+
+# TESTE 2: Verificar se keyword matching funciona
+from src.classifier.matcher import Matcher
+from src.classifier.models import Product, Rule
+
+product = Product(description='Danone Iogurte Natural 500ml', ncm='0402')
+rule = Rule(
+    id=1, prioridade=100, nome="Test", ativo=True, categoria_id=7,
+    criterio_palavras_chave='danone iogurte,danone natural'
+)
+matches = Matcher.matches_all_criteria(product, rule)
+print(f'Match result: {matches}')  # Deve ser True!
+```
+
+#### Fase 7: Validar com Produtos de Teste
+```python
+# Criar lista de produtos para testar
+test_products = [
+    {'id': '001', 'description': 'Danone Iogurte Natural 500ml', 'ncm': '0402'},
+    {'id': '002', 'description': 'Iog.Danone Grego 200g', 'ncm': '0402'},
+    # ... mais produtos
+]
+
+# Avaliar cada um
+from src.classifier.engine import RuleEngine
+conn = get_db_connection()
+engine = RuleEngine(db_connection=conn, cache_rules=False)
+
+for product in test_products:
+    result = engine.evaluate(product)
+    status = '✓' if result.classification == 'Laticínios' else '✗'
+    print(f'{status} {product["description"]} → {result.classification}')
+
+# Todos devem passar (✓)!
+```
+
+### 🚨 Erros Comuns e Soluções
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| `NO_MATCH` para todos os produtos | Keywords com `\|` em vez de `,` | Usar VÍRGULA como separador |
+| Alguns produtos ainda não classificam | Prioridade muito baixa vs. outras regras | Aumentar `prioridade` da regra |
+| Migration falha com "column already exists" | Migration já foi executada antes | Usar `ON CONFLICT` ou deletar regras antigas |
+| Matcher retorna False quando deveria True | Descrição do produto não contém exatamente a keyword | Testar com `Matcher._match_keywords()` diretamente |
+
+### 📋 Checklist Final Antes de Confirmar
+
+- [ ] Migration file criado com nome sequencial correto (006_, 007_, etc.)
+- [ ] TODOS os keywords separados por **VÍRGULA (,)** não por pipe
+- [ ] Comentário no topo da migration explicando o separador
+- [ ] src/classifier/utils.py atualizado com novo prefixo de migration
+- [ ] Migration executada com sucesso (sem erros SQL)
+- [ ] Pelo menos 5 produtos de teste classificam corretamente
+- [ ] Nenhuma regra antiga conflita com as novas (testar com `cache_rules=False`)
+- [ ] Documentado: nome da regra, prioridade, e variações cobertas
+
+---
+
 ## 📊 Exemplo Real: Caso Danone Banana
 
 ### O Problema

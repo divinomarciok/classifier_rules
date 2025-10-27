@@ -213,7 +213,7 @@ def init_database(db_config: Optional[Dict[str, Any]] = None) -> bool:
         migrations_dir = Path(__file__).parent.parent.parent / 'migrations'
         migration_files = sorted([
             f for f in migrations_dir.glob('*.sql')
-            if f.name.startswith(('001_', '002_', '003_', '004_', '005_'))
+            if f.name.startswith(('001_', '002_', '003_', '004_', '005_', '006_'))
         ])
 
         if not migration_files:
