@@ -24,10 +24,11 @@
   - FK validation for categories
   - Category name lookups
 
-- **Phase 3 (CSV Import/Export)**: ⏸️ PLANNED FOR FUTURE
-  - FR-013 to FR-016: CSV functionality is designed (in tasks.md) but DEFERRED beyond MVP
-  - Status: Not in scope for current implementation cycle (single developer, immediate sprint)
-  - Trigger for future: After MVP (US1-US3) is stable in production, CSV can be added as Phase 6-7
+- **Phase 3 (Batch & CSV Processing)**: ✅ COMPLETE
+  - FR-011 to FR-016: Batch classification and CSV import/export fully implemented
+  - Status: Production-ready
+  - Batch script: `python -m classifier.cli.classify_batch --limit N`
+  - CSV script: `python classify_csv.py --input in.csv --output out.csv`
 
 ## User Scenarios & Testing *(mandatory)*
 

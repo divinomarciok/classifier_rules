@@ -352,21 +352,21 @@ description: "Task list for Rule Engine Core implementation"
 
 ---
 
-## ⏸️ PHASES 6-7: FUTURE FEATURES (Not in MVP Scope)
+## ✅ PHASES 6-7: BATCH & CSV FEATURES (IMPLEMENTED)
 
-**Status**: Tasks are detailed and ready for future implementation after US1-US3 MVP is stable in production.
+**Status**: User Stories 4 and 5 have been fully implemented and tested.
 
-**Trigger for implementation**: Stakeholder approval + resource allocation (likely next sprint/cycle).
+**Location**:
+- Batch: `src/classifier/batch.py` + `src/classifier/cli/classify_batch.py`
+- CSV: `src/classifier/csv_classifier.py` + `src/classifier/cli/classify_csv.py`
 
-**Why deferred**:
-- Single developer focus needed on core engine first (MVP = US1-US3)
-- Batch + CSV are operational conveniences, not core functionality
-- Can be added post-MVP without redesigning engine
-- Gives time to gather real-world rule usage patterns before optimizing batch workflows
+**Production Ready**: Yes, fully integrated with core engine (US1-US3)
+
+**Task Details Below**: Preserved for reference and as implementation checklist.
 
 ---
 
-## Phase 6: User Story 4 - Batch Classification from Database (Priority: P2) [FUTURE]
+## Phase 6: User Story 4 - Batch Classification from Database (Priority: P2) ✅ IMPLEMENTED
 
 **Goal**: Enable operators to classify multiple unclassified products from the database using a command-line script with quantity parameter
 
@@ -454,7 +454,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ---
 
-## Phase 7: User Story 5 - CSV Classification Import & Export (Priority: P3) [FUTURE]
+## Phase 7: User Story 5 - CSV Classification Import & Export (Priority: P3) ✅ IMPLEMENTED
 
 **Goal**: Enable flexible classification of products from CSV files for ad-hoc analysis, Excel integration, and external workflows
 

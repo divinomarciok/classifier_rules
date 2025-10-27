@@ -124,6 +124,19 @@ A especificação foi atualizada para 100% de clareza e consistência com base e
 
 ---
 
+## 🔄 Update 2025-10-26 (Após validação de código)
+
+**Achado**: Código implementou US4-US5 além do que documentação inicial indicava.
+
+**Decisão Tomada**:
+- ✅ **Aceitar US4-US5 como IMPLEMENTADAS** — Reflete status real do código
+- ✅ **Remover Migration 005** — Tabela criterios_palavras_chave foi deletada (nunca usada)
+- ✅ **Atualizar spec.md, tasks.md** — Marcar Phases 6-7 como ✅ COMPLETE
+
+**Resultado**: Documentação 100% alinhada com código atual
+
+---
+
 ## Próximos Passos
 
 ### Antes da Implementação
