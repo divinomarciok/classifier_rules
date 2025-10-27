@@ -18,7 +18,12 @@
       "Bash(source:*)",
       "Bash(pip install:*)",
       "Bash(python3:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(chmod:*)",
+      "Bash(while read f)",
+      "Bash(do echo \"✅ $f\")",
+      "Bash(done)",
+      "Bash(awk '{print $9, \"\"\"\"(\"\"\"\" $5 \"\"\"\")\"\"\"\"}')"
     ],
     "deny": [],
     "ask": []

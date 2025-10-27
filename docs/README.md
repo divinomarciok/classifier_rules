@@ -32,14 +32,14 @@ Organização clara e simples da documentação do projeto.
 
 Pasta: `guides/`
 
+### [guides/DATABASE_MIGRATION_GUIDE.md](guides/DATABASE_MIGRATION_GUIDE.md)
+Como migrar o banco de dados ou alterar a estrutura da tabela
+
 ### [guides/RULE_UPDATE_PROCESS.md](guides/RULE_UPDATE_PROCESS.md)
-Entender o processo técnico completo de atualizar regras
+Processo completo de atualizar/criar regras de classificação
 
-### [guides/QUICK_RULE_VALIDATION.md](guides/QUICK_RULE_VALIDATION.md)
-Referência rápida com checklist e exemplos
-
-### [guides/RULE_ERRORS_CATALOG.md](guides/RULE_ERRORS_CATALOG.md)
-Erros já encontrados e como foram corrigidos
+### [guides/RULE_VALIDATION_INDEX.md](guides/RULE_VALIDATION_INDEX.md)
+Índice de navegação entre documentos de validação
 
 ---
 
@@ -51,29 +51,8 @@ Pasta: `reference/`
 - Estrutura do código
 - Como funciona internamente
 - Fluxo de dados
+- Acesso ao banco
 
-### [reference/DATABASE_SETUP.md](reference/DATABASE_SETUP.md)
-- Schema do banco
-- Tabelas e colunas
-- Migrations
-
-### [reference/CLAUDE_INSTRUCTIONS.md](reference/CLAUDE_INSTRUCTIONS.md)
-Instruções para Claude Code trabalhar no projeto
-
----
-
-## 📋 Documentos Antigos (Arquivo)
-
-Pasta: `archive/`
-
-Documentos históricos mantidos para referência:
-- CHANGELOG.md
-- IMPLEMENTATION_LOG.md
-- IMPLEMENTATION_STATUS.md
-- PROJECT_SUMMARY.md
-- etc.
-
-**Não leia a menos que tenha curiosidade sobre a história do projeto.**
 
 ---
 
@@ -84,7 +63,6 @@ Documentos históricos mantidos para referência:
 | `/docs` | Documentação principal | Sempre |
 | `/docs/guides` | Aprender processos | Aprendizado |
 | `/docs/reference` | Entender tecnicamente | Desenvolvimento |
-| `/docs/archive` | Histórico | Nunca (a menos que queira) |
 
 ---
 
@@ -93,22 +71,19 @@ Documentos históricos mantidos para referência:
 ```
 classifier_regras/
 ├── README.md (principal - obrigatório)
+├── QUICKSTART.md (setup rápido)
+├── SETUP_DOCKER.md (setup para Docker)
+├── setup.sh (script automático)
 ├── docs/
 │   ├── README.md (este arquivo)
 │   ├── SETUP.md (como configurar)
 │   ├── RULES_VALIDATION.md (reportar erros)
 │   ├── guides/
+│   │   ├── DATABASE_MIGRATION_GUIDE.md
 │   │   ├── RULE_UPDATE_PROCESS.md
-│   │   ├── QUICK_RULE_VALIDATION.md
-│   │   └── RULE_ERRORS_CATALOG.md
-│   ├── reference/
-│   │   ├── CURRENT_ARCHITECTURE.md
-│   │   ├── DATABASE_SETUP.md
-│   │   └── CLAUDE_INSTRUCTIONS.md
-│   └── archive/
-│       ├── CHANGELOG.md
-│       ├── IMPLEMENTATION_LOG.md
-│       └── (19 outros documentos históricos)
+│   │   └── RULE_VALIDATION_INDEX.md
+│   └── reference/
+│       └── CURRENT_ARCHITECTURE.md
 ├── src/
 ├── tests/
 ├── migrations/
@@ -125,31 +100,8 @@ classifier_regras/
 3. Quer aprender? → Explore `guides/`
 
 ### Para Claude Code:
-1. Toda ação começa em `reference/CLAUDE_INSTRUCTIONS.md`
-2. Processo técnico? → `guides/RULE_UPDATE_PROCESS.md`
-3. Estrutura código? → `reference/CURRENT_ARCHITECTURE.md`
+Veja instruções em `.claude/claude.md`
 
----
-
-## 🚫 Documentos NÃO Leia
-
-Estes estão no `/archive` por razão - são históricos:
-
-- ❌ EXACT_CHANGES.md
-- ❌ IMPLEMENTATION_CHECKLIST.md
-- ❌ IMPLEMENTATION_LOG.md
-- ❌ IMPLEMENTATION_STATUS.md
-- ❌ INDEX.md (antigo)
-- ❌ NEXT_STEPS.md
-- ❌ NO_MATCH_FIX_IMPLEMENTATION.md
-- ❌ NO_MATCH_ISSUE.md
-- ❌ PHASE_2_IMPLEMENTATION_COMPLETE.md
-- ❌ PROJECT_SUMMARY.md
-- ❌ TESTING_GUIDE.md
-
-Todos esses estão em `/docs/archive/` - **não leia a menos que queira entender a história**.
-
----
 
 ## ✨ Conclusão
 

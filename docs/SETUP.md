@@ -2,46 +2,78 @@
 
 **Leia isto PRIMEIRO se está começando do zero.**
 
+Se PostgreSQL está em Docker, veja `../SETUP_DOCKER.md`.
+
 ---
 
 ## 1️⃣ Pré-requisitos
 
 ```bash
-# PostgreSQL rodando
-sudo systemctl start postgresql  # Linux
-brew services start postgresql  # Mac
-
-# Criar banco de dados
-createdb -U postgres market_v1
-
 # Python 3.8+
 python3 --version
 
-# Instalar dependências
-python3 -m pip install psycopg2-binary pytest pytest-cov
+# PostgreSQL (local OU Docker)
+# Se local:
+sudo systemctl start postgresql  # Linux
+brew services start postgresql  # Mac
+
+# Se Docker:
+docker start pg-classifier  # ou seu container name
 ```
 
 ---
 
-## 2️⃣ Configurar Banco de Dados
+## 2️⃣ Criar Banco de Dados (se local)
 
 ```bash
-# Variáveis de ambiente
-export DB_HOST=localhost
-export DB_NAME=market_v1
-export DB_USER=postgres
-export DB_PASSWORD=sua_senha
+# Se usando PostgreSQL local
+createdb -U postgres market_v1
 
-# Testar conexão
-psql -U postgres -h localhost -d market_v1 -c "SELECT 1;"
+# Se usando Docker, banco já deve existir
+# Ou criar com: docker exec pg-classifier psql -U postgres -c "CREATE DATABASE market_v1;"
 ```
 
 ---
 
-## 3️⃣ Rodar Migrations
+## 3️⃣ Configurar Variáveis de Ambiente
 
 ```bash
-# Executar todas as migrations
+# Copiar arquivo de exemplo
+cp .env.example .env
+
+# Editar .env com suas credenciais
+nano .env
+```
+
+Configure (exemplo para Docker):
+```bash
+DB_HOST=localhost
+DB_NAME=market_v1
+DB_USER=postgres
+DB_PASSWORD=sua_senha_docker
+DB_PORT=5432
+```
+
+---
+
+## 4️⃣ Setup Automático
+
+```bash
+bash setup.sh
+```
+
+O script faz:
+- ✅ Cria venv
+- ✅ Instala dependências
+- ✅ Configura .env (se não existir)
+- ✅ Tenta rodar migrations
+- ✅ Testa conexão
+
+---
+
+## 5️⃣ Rodar Migrations Manualmente (se necessário)
+
+```bash
 python3 << 'EOF'
 from src.classifier.utils import init_database
 init_database()
@@ -50,7 +82,7 @@ EOF
 
 ---
 
-## 4️⃣ Rodar Testes
+## 6️⃣ Rodar Testes
 
 ```bash
 # Todos os testes
@@ -62,21 +94,27 @@ pytest tests/unit/ -v
 
 ---
 
-## 5️⃣ Testar Batch Classification
+## 7️⃣ Testar Classificação
 
 ```bash
 # Ver estatísticas
 python3 -m classifier.cli.classify_batch --stats
 
-# Classificar produtos
+# Classificar 100 produtos
 python3 -m classifier.cli.classify_batch --limit 100
+
+# Testar sem atualizar banco
+python3 -m classifier.cli.classify_batch --limit 100 --dry-run
 ```
 
 ---
 
 ## ✅ Pronto!
 
-Se tudo rodou sem erro, seu projeto está configurado.
+Se tudo funcionou, seu projeto está configurado.
 
-**Próximo**: Leia `docs/RULES_VALIDATION.md` se encontrar produtos errados.
+**Próximo**:
+- Se encontrou produtos errados: `docs/RULES_VALIDATION.md`
+- Para entender a arquitetura: `docs/reference/CURRENT_ARCHITECTURE.md`
+- Para migração de banco: `docs/guides/DATABASE_MIGRATION_GUIDE.md`
 
