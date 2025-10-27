@@ -24,8 +24,10 @@
   - FK validation for categories
   - Category name lookups
 
-- **Phase 3 (CSV Import/Export)**: ❌ NOT IMPLEMENTED
-  - FR-013 to FR-016: CSV functionality pending
+- **Phase 3 (CSV Import/Export)**: ⏸️ PLANNED FOR FUTURE
+  - FR-013 to FR-016: CSV functionality is designed (in tasks.md) but DEFERRED beyond MVP
+  - Status: Not in scope for current implementation cycle (single developer, immediate sprint)
+  - Trigger for future: After MVP (US1-US3) is stable in production, CSV can be added as Phase 6-7
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -202,8 +204,9 @@ A user can import products from a CSV file, classify them using the rule engine,
 ### Functional Requirements
 
 - **FR-001**: System MUST read classification rules from the `regras_de_classificacao` database table
-- **FR-001a**: System MUST validate all rule category results against `categorias` table (foreign key integrity) ✅ IMPLEMENTED
+- **FR-001a**: System MUST validate all rule category results against `categorias` table (foreign key integrity) via `categoria_id` FK ✅ IMPLEMENTED
 - **FR-001b**: System MUST prevent invalid category assignments via database FK constraints (ON DELETE RESTRICT, ON UPDATE CASCADE) ✅ IMPLEMENTED
+  - **Note**: Result storage is ONLY `categoria_id` (INTEGER FK to categorias.id). Field `resultado_classificacao` is deprecated and removed from schema.
 - **FR-002**: System MUST evaluate all criteria fields in a rule (keywords, NCM patterns, size, quantity, etc.) against incoming product attributes
 - **FR-003**: System MUST apply only active rules (where status indicates rule is enabled)
 - **FR-004**: System MUST return the classification from the highest-priority matching rule when multiple rules match
@@ -239,7 +242,7 @@ A user can import products from a CSV file, classify them using the rule engine,
   - Attributes: category_id (from categorias table), category name, confidence level, or other result fields per business requirements
 
 - **Audit Log**: Record of rule application for traceability (`auditoria_classificacao` table)
-  - Fields: id (SERIAL PK), id_regra (FK to regras_de_classificacao), id_produto, descricao_produto, ncm_produto, resultado_classificacao, criterios_combinados (JSON), tempo_avaliacao_ms, categoria_id (FK to categorias), data_classificacao
+  - Fields: id (SERIAL PK), id_regra (FK to regras_de_classificacao), id_produto, descricao_produto, ncm_produto, resultado_classificacao (category name from categoria_id), criterios_combinados (JSON), tempo_avaliacao_ms, categoria_id (FK to categorias), data_classificacao
 
 ## Success Criteria *(mandatory)*
 

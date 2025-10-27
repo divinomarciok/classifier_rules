@@ -18,14 +18,32 @@ Build a generic, data-driven rule evaluation engine that reads classification ru
 **Constraints**: Simple field matching without complex sub-query logic; stateless evaluation
 **Scale/Scope**: Support thousands of active rules; millions of classification requests per day
 
+## MVP Scope (Single Developer — Immediate Sprint)
+
+**IN SCOPE**:
+- ✅ User Story 1: Basic rule evaluation from database
+- ✅ User Story 2: Priority-based conflict resolution
+- ✅ User Story 3: Audit logging of applied rules
+- ✅ Database schema setup (migrations)
+- ✅ Core engine implementation + comprehensive tests
+
+**OUT OF SCOPE (Planned for Future)**:
+- ❌ User Story 4: Batch classification from database (can be added after MVP stabilizes)
+- ❌ User Story 5: CSV import/export (full task plan in tasks.md Phases 6-7, deferred)
+- ❌ Complex condition logic (AND/OR nesting beyond rule composition)
+- ❌ Advanced optimization (caching, query tuning) — only if performance issues arise
+
+**Decision Rationale**: Single developer needs clear MVP boundaries. US1-US3 form complete, production-ready system. US4-US5 add operational convenience but are not critical for core classification functionality.
+
 ## Category Management Strategy
 
 **New in v1.2.0**: `categorias` table provides centralized category management with referential integrity.
 
 **Schema Design**:
 - `categorias` table created FIRST (dependency for rules and products)
-- `regras_de_classificacao.categoria_id` → Foreign Key to `categorias.id` (ON DELETE RESTRICT, ON UPDATE CASCADE)
+- `regras_de_classificacao.categoria_id` → Foreign Key to `categorias.id` (ON DELETE RESTRICT, ON UPDATE CASCADE) — **AUTHORITATIVE result storage**
 - `produtos_tabela.categoria_id` → Foreign Key to `categorias.id` (optional for product history)
+- `resultado_classificacao` field DEPRECATED and removed from schema (replaced by categoria_id FK)
 
 **Category Seeding**:
 - Base categories must be seeded during initialization (via migration or init script)
@@ -247,6 +265,22 @@ Both scripts leverage:
 - Creates separate audit CSV when requested
 - Updates database when --update-db flag used
 - Performance: 50,000 rows complete in under 10 minutes
+
+## Keywords Storage Design
+
+**Decision**: Use denormalized keyword storage (TEXT field in `regras_de_classificacao`).
+
+**Why not `criterios_palavras_chave` table**:
+- Adds unnecessary schema complexity for MVP
+- Single-developer project: additional table = more migration management, fixtures, tests
+- Text field approach is simpler: matcher reads keywords directly from rule record
+- Normalization can be added later (post-MVP) if keyword reuse becomes performance issue
+
+**Implementation**:
+- Matcher reads `criterio_palavras_chave` as comma-separated TEXT
+- Splits by comma, trims whitespace, performs case-insensitive substring matching
+- No separate table queries needed
+- Audit logs store matched keywords as CSV for clarity
 
 ## Complexity Tracking
 

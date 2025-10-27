@@ -136,7 +136,9 @@ this governance:
 - `categorias` — Category reference table with all valid classification categories
 - `regras_de_classificacao` — Classification rules with priority and criteria, foreign key to categorias
 - `auditoria_classificacao` — Audit logs tracking rule application history
-- Any supporting tables for rule criteria (e.g., keywords, ranges, patterns)
+
+**Optional supporting tables** (for future optimization):
+- `criterios_palavras_chave` — Normalized keywords table (not required for MVP; can be added post-release if keyword reuse becomes performance bottleneck)
 
 ## Infrastructure & Database Configuration
 
@@ -193,7 +195,9 @@ This governance includes:
 - `criterio_quantidade_min` (INTEGER) — Minimum quantity threshold
 - `criterio_quantidade_max` (INTEGER) — Maximum quantity threshold
 - `criterio_categoria` (VARCHAR) — Product category filter (if applicable)
-- `categoria_id` (INTEGER, NOT NULL, FOREIGN KEY → `categorias`.`id`) — Result category
+- **`categoria_id` (INTEGER, NOT NULL, FOREIGN KEY → `categorias`.`id`) — AUTHORITATIVE result category**
+  - **NOTE**: `categoria_id` is the ONLY and AUTHORITATIVE storage for rule classification results
+  - **Deprecated**: Field `resultado_classificacao` (VARCHAR) has been removed. All results are now stored as FK references to `categorias` table
   - CONSTRAINT: ON DELETE RESTRICT (prevent deleting categories in use)
   - CONSTRAINT: ON UPDATE CASCADE (update references if category ID changes)
 - `data_criacao` (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP) — Creation timestamp
@@ -215,12 +219,15 @@ This governance includes:
 - INDEX on (`id_produto`, `data_classificacao`) for query performance
 - INDEX on (`id_regra`, `data_classificacao`) for audit trail by rule
 
-**3. `criterios_palavras_chave` (Optional - normalized keywords)**
-- `id` (PRIMARY KEY) — Keyword entry ID
-- `id_regra` (FOREIGN KEY → `regras_de_classificacao`.`id`) — Rule this keyword belongs to
-- `palavra_chave` (VARCHAR, NOT NULL) — Individual keyword
-- `peso` (DECIMAL, DEFAULT 1.0) — Optional: keyword importance weight
-- UNIQUE INDEX on (`id_regra`, `palavra_chave`)
+**3. `criterios_palavras_chave` (Optional - normalized keywords - for future use)**
+- **NOT REQUIRED FOR MVP** — Keywords are stored as comma-separated TEXT in `regras_de_classificacao.criterio_palavras_chave`
+- **Future normalization**: If keyword reuse and duplicate management become performance concerns, this table can be added post-MVP
+- **Proposed schema (when needed)**:
+  - `id` (PRIMARY KEY) — Keyword entry ID
+  - `id_regra` (FOREIGN KEY → `regras_de_classificacao`.`id`) — Rule this keyword belongs to
+  - `palavra_chave` (VARCHAR, NOT NULL) — Individual keyword
+  - `peso` (DECIMAL, DEFAULT 1.0) — Optional: keyword importance weight
+  - UNIQUE INDEX on (`id_regra`, `palavra_chave`)
 
 **Migration & Deployment:**
 - All schema changes MUST be tracked in a migrations directory

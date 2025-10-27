@@ -10,7 +10,13 @@ description: "Task list for Rule Engine Core implementation"
 
 **Tests**: TDD approach — Test-first strategy is REQUIRED (per Constitutional Principle IV). Write tests FIRST, ensure they FAIL, then implement.
 
-**Organization**: Tasks are grouped by user story (US1-US5) to enable independent implementation and testing of each story. Each user story can be developed independently and deployed as an increment. US1-US3 are core engine; US4-US5 are CLI/batch processing scripts.
+**SCOPE CLARIFICATION (Single Developer, MVP)**:
+- ✅ **IN SCOPE**: Phases 1-5 (Setup, Foundational, US1-US3 Core Engine) — **IMPLEMENT NOW**
+- ⏸️ **OUT OF SCOPE**: Phases 6-7 (US4 Batch, US5 CSV) — **MARKED FUTURE**, kept for reference
+- ℹ️ **REMOVED**: T011 (`criterios_palavras_chave` table) — Using denormalized TEXT field instead
+- 📋 **TASK NUMBERING**: MVP uses T001-T054; US4-US5 tasks (T055-T068) remain for future planning reference
+
+**Organization**: Tasks are grouped by user story (US1-US5) to enable independent implementation and testing. **US1-US3 (Phases 1-5) are core engine and ready to implement**. US4-US5 (Phases 6-7) are marked FUTURE but task details preserved for when resources permit.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -66,10 +72,10 @@ description: "Task list for Rule Engine Core implementation"
   - COMPOSITE INDEX on (id_produto, data_classificacao), COMPOSITE INDEX on (id_regra, data_classificacao), SIMPLE INDEX on data_classificacao
   - Use CREATE TABLE IF NOT EXISTS for idempotency
   - Include constraint: resultado_classificacao NOT NULL
-- [ ] T011 Create database schema migration: `migrations/005_create_criterios_palavras_chave.sql` (optional table for normalized keywords)
-  - Table: `criterios_palavras_chave` with 5 columns (id, id_regra, palavra_chave, peso, data_criacao)
-  - PRIMARY KEY on `id`, FOREIGN KEY on `id_regra`, UNIQUE INDEX on (id_regra, palavra_chave)
-  - Use CREATE TABLE IF NOT EXISTS for idempotency
+- [ ] ~~T011 Create database schema migration: `migrations/005_create_criterios_palavras_chave.sql`~~ **REMOVED**
+  - **Reason**: Using denormalized TEXT field (`criterio_palavras_chave` in `regras_de_classificacao`) for MVP
+  - **Future**: Can add normalized table post-MVP if keyword reuse becomes performance bottleneck
+  - **Action**: Skip this task; matcher reads keywords directly from rule record as comma-separated TEXT
 - [ ] T012 Create idempotent database initialization script: `src/classifier/init_db.py`
   - Function: `init_database()` that executes all migration SQL files in order (002, 003, 004, 005...)
   - Reads .env for connection parameters
@@ -344,7 +350,23 @@ description: "Task list for Rule Engine Core implementation"
 
 ---
 
-## Phase 6: User Story 4 - Batch Classification from Database (Priority: P2)
+---
+
+## ⏸️ PHASES 6-7: FUTURE FEATURES (Not in MVP Scope)
+
+**Status**: Tasks are detailed and ready for future implementation after US1-US3 MVP is stable in production.
+
+**Trigger for implementation**: Stakeholder approval + resource allocation (likely next sprint/cycle).
+
+**Why deferred**:
+- Single developer focus needed on core engine first (MVP = US1-US3)
+- Batch + CSV are operational conveniences, not core functionality
+- Can be added post-MVP without redesigning engine
+- Gives time to gather real-world rule usage patterns before optimizing batch workflows
+
+---
+
+## Phase 6: User Story 4 - Batch Classification from Database (Priority: P2) [FUTURE]
 
 **Goal**: Enable operators to classify multiple unclassified products from the database using a command-line script with quantity parameter
 
@@ -432,7 +454,7 @@ description: "Task list for Rule Engine Core implementation"
 
 ---
 
-## Phase 7: User Story 5 - CSV Classification Import & Export (Priority: P3)
+## Phase 7: User Story 5 - CSV Classification Import & Export (Priority: P3) [FUTURE]
 
 **Goal**: Enable flexible classification of products from CSV files for ad-hoc analysis, Excel integration, and external workflows
 
@@ -645,17 +667,22 @@ description: "Task list for Rule Engine Core implementation"
 
 ## Dependencies & Execution Order
 
-### Phase Dependencies
+### Phase Dependencies (MVP Only: Phases 1-5)
+
+**FOR SINGLE DEVELOPER MVP** (implement now):
 
 - **Setup (Phase 1)**: No dependencies - can start immediately ✅
-- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories ⚠️
-- **User Stories (Phase 3-7)**: All depend on Foundational phase completion
+- **Foundational (Phase 2)**: Depends on Setup completion - **BLOCKS all user stories** ⚠️
+- **Core Engine (Phase 3-5)**: All depend on Foundational phase completion
   - User Story 1 (P1): No dependencies on other stories → can start after Foundational
   - User Story 2 (P1): Depends on US1 completion → priority/tiebreak logic extends evaluation
   - User Story 3 (P2): Independent of US2 → but typically added after core engine works
-  - User Story 4 (P2): Depends on US1 completion → uses RuleEngine for batch processing
-  - User Story 5 (P3): Depends on US1 completion → uses RuleEngine for CSV classification
-- **Polish (Final Phase)**: Depends on all desired user stories being complete ✅
+- **Polish (Final Phase)**: Depends on US1-US3 being complete ✅
+
+**FOR FUTURE** (not in MVP scope):
+- **User Story 4 (P2)**: Depends on US1 completion + MVP stabilization → uses RuleEngine for batch processing
+- **User Story 5 (P3)**: Depends on US1 completion + MVP stabilization → uses RuleEngine for CSV classification
+- **Phase 6-7**: Only implement if/when stakeholder approves post-MVP
 
 ### User Story Dependencies
 
@@ -824,115 +851,52 @@ TOTAL: 6 hours (spread across days 2-4)
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 Only)
+### Recommended: MVP (User Stories 1-3) for Single Developer
 
-Recommended for fastest MVP delivery:
+**⏱️ Timeline**: ~2-3 weeks (part-time, ~20-30 hrs/week)
 
-1. **Day 1**: Complete Phase 1 (Setup) + Phase 2 (Foundational)
+1. **Week 1 - Days 1-2**: Complete Phase 1 (Setup) + Phase 2 (Foundational)
    - Tasks: T001-T015
-   - Time: ~6 hours
-   - Deliverable: Project structure, database ready
+   - Time: ~6-8 hours
+   - Deliverable: Project structure, database migrations, test fixtures ready
 
-2. **Day 2**: Complete Phase 3 (User Story 1)
-   - Tasks: T016-T028
-   - Time: ~8 hours
-   - Deliverable: Working rule evaluation engine
+2. **Week 1 - Days 3-5**: Complete Phase 3 (User Story 1)
+   - Tasks: T016-T028 (contract tests, models, matcher, evaluator, engine)
+   - Time: ~12-16 hours
+   - Deliverable: Core rule evaluation engine working with tests
 
-3. **Day 3**: Validate + Polish
-   - Tasks: T042-T052 (subset for MVP)
-   - Time: ~4 hours
-   - Deliverable: MVP-ready with docs + tests
+3. **Week 2 - Days 1-3**: Complete Phase 4 (User Story 2)
+   - Tasks: T029-T034 (priority resolution tests + implementation)
+   - Time: ~6-8 hours
+   - Deliverable: Conflict resolution working; highest priority rule always selected
 
-**Result**: Functional Rule Engine that can classify products based on rules. Deploy and get user feedback.
+4. **Week 2 - Days 4-5**: Complete Phase 5 (User Story 3)
+   - Tasks: T035-T041 (audit logging tests + implementation)
+   - Time: ~6-8 hours
+   - Deliverable: Full audit trail of classifications
 
-### Incremental Delivery (Recommended for Production)
+5. **Week 3**: Polish + Validation
+   - Tasks: T042-T054 (docs, API reference, troubleshooting, final tests)
+   - Time: ~4-6 hours
+   - Deliverable: MVP-ready with comprehensive docs + 85%+ test coverage
 
-1. **Sprint 1** (Days 1-3): Deliver MVP (US1 only)
-   - Phase 1-3 complete (T001-T028)
-   - Deploy to staging
-   - Get user feedback
+**Result**: **Production-ready Rule Engine** (US1-US3) that:
+- ✅ Reads rules from database
+- ✅ Evaluates with priority-based conflict resolution
+- ✅ Logs all decisions for auditability
+- ✅ Fully tested (unit + integration)
+- ✅ Well documented
 
-2. **Sprint 2** (Days 4-5): Add Priority Resolution (US2)
-   - Phase 4 complete (T029-T034)
-   - Enhance engine with conflict resolution
-   - Deploy improvements
+**Next steps after MVP**:
+- Deploy to production + gather usage metrics
+- Monitor performance with real data
+- **Then consider**: US4 (Batch) or US5 (CSV) if stakeholder requests operational scripts
 
-3. **Sprint 3** (Days 6-7): Add Audit Logging (US3)
-   - Phase 5 complete (T035-T041)
-   - Full traceability
-   - Production ready
+### Note: Alternative Strategies (For Reference)
 
-4. **Sprint 4** (Days 8-9): Add Batch Processing (US4)
-   - Phase 6 complete (T055-T060)
-   - CLI script for bulk database classification
-   - Enable automated processing
+The tasks.md originally included strategies for multi-developer teams (incremental sprints, parallel 5-person teams, fast all-at-once delivery). **These do not apply to single-developer MVP scope.**
 
-5. **Sprint 5** (Days 10-11): Add CSV Support (US5)
-   - Phase 7 complete (T061-T068)
-   - CSV import/export capabilities
-   - Enable flexible integrations
-
-6. **Sprint 6**: Optimization + Documentation
-   - Phase N polish (T042-T054)
-   - Performance tuning
-   - Comprehensive docs
-
-**Result**: Gradual feature rollout, lower risk, earlier user value. Core engine first, then scripting.
-
-### Alternative: Fast Delivery (All Features at Once)
-
-1. **Day 1**: Setup + Foundational phases
-   - Phase 1-2 complete (T001-T015)
-   - Time: ~6 hours
-
-2. **Days 2-5**: All user stories in parallel
-   - Developer A: US1 (T016-T028)
-   - Developer B: US2 (T029-T034)
-   - Developer C: US3 (T035-T041)
-   - Developer D: US4 (T055-T060)
-   - Developer E: US5 (T061-T068)
-   - Time: ~4 days, 8+ hours/day each
-
-3. **Days 6-7**: Polish + validation
-   - Phase N polish (T042-T054)
-   - Performance tuning, docs
-   - Time: ~2 days
-
-**Result**: Complete feature set in 7 days with 5+ developers. Higher parallelism, coordinated testing needed.
-
-### Parallel Team Strategy (5+ developers)
-
-1. **Team** (all, day 1): Setup + Foundational phases
-   - All work together on T001-T015
-   - Time: 1 day, ~6 hours
-   - Establish foundation
-
-2. **Developer A**: US1 Tests + Implementation (days 2-3)
-   - Focus: Contract tests (T016-T018), models (T019-T020), services (T021-T022), core engine (T023-T028)
-   - Delivers: Working RuleEngine that others depend on
-
-3. **Developer B**: US2 Tests + Implementation (starts day 3, after US1 tests pass)
-   - Focus: Priority resolution tests (T029-T030), selector service (T031), engine update (T032)
-   - Depends on: A's work (RuleEngine.evaluate)
-
-4. **Developer C**: US3 Tests + Implementation (starts day 3, parallel to B)
-   - Focus: Audit logging tests (T035-T036), audit service (T037), engine integration (T038)
-   - Depends on: A's work (RuleEngine.evaluate)
-
-5. **Developer D**: US4 Tests + Implementation (starts day 3, parallel to B & C)
-   - Focus: Batch tests (T055-T056), batch classifier (T057), CLI script (T058)
-   - Depends on: A's work (RuleEngine.evaluate)
-
-6. **Developer E**: US5 Tests + Implementation (starts day 3, parallel to B, C, & D)
-   - Focus: CSV tests (T061-T062), CSV classifier (T063), CLI script (T064), sample files (T068)
-   - Depends on: A's work (RuleEngine.evaluate)
-
-7. **All**: Polish + Validation (days 5-6)
-   - Phase N tasks (T042-T054)
-   - Docs, performance, final testing
-   - Deployment readiness
-
-**Result**: Full feature set in 6 days with 5+ developers. Coordinated testing, US1 blocks others for 1 day only.
+**If you need multi-team implementation in the future**, refer to the original task breakdown (Phases 1-5 for foundation, Phases 6-7 ready for future US4-US5). The task structure remains ideal for parallelization once core engine is stable.
 
 ---
 
