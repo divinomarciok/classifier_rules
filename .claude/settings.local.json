@@ -23,7 +23,8 @@
       "Bash(while read f)",
       "Bash(do echo \"✅ $f\")",
       "Bash(done)",
-      "Bash(awk '{print $9, \"\"\"\"(\"\"\"\" $5 \"\"\"\")\"\"\"\"}')"
+      "Bash(awk '{print $9, \"\"\"\"(\"\"\"\" $5 \"\"\"\")\"\"\"\"}')",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

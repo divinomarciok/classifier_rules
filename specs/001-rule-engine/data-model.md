@@ -78,21 +78,26 @@
 
 ### 3. KeywordCriteria (`criterios_palavras_chave`)
 
-**Purpose**: Normalized keyword storage (optional, for normalized keyword matching)
+**Status**: NOT USED IN V1 - Reserved for future normalization
 
-**Fields**:
+**Purpose**: Normalized keyword storage (optional, for normalized keyword matching in V2+)
+
+**Note**: V1 uses `regras_de_classificacao.criterio_palavras_chave` (comma-separated keywords stored directly in rule).
+This table is prepared for future normalization but not utilized in current implementation.
+
+**Fields** (for future reference):
 - `id` (INTEGER, PRIMARY KEY) — Keyword entry ID
 - `id_regra` (INTEGER, FOREIGN KEY → `regras_de_classificacao.id`) — Rule this keyword belongs to
 - `palavra_chave` (VARCHAR(100), NOT NULL) — Individual keyword (lowercase)
 - `peso` (DECIMAL(3,2), DEFAULT 1.0) — Optional: keyword importance weight
 - `data_criacao` (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP) — Creation timestamp
 
-**Indexes**:
+**Indexes** (prepared, not used):
 - PRIMARY KEY: `id`
 - UNIQUE: `(id_regra, palavra_chave)` prevents duplicate keywords per rule
 - SIMPLE: `(palavra_chave)` for keyword-based searches
 
-**Validation Rules**:
+**Validation Rules** (for future use):
 - `id_regra` MUST reference a valid rule (foreign key constraint)
 - `palavra_chave` MUST NOT be empty and MUST be lowercase
 - `peso` MUST be between 0.0 and 10.0
