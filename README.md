@@ -7,8 +7,10 @@ Sistema de classificação automática de produtos por categoria usando regras b
 ## 🚀 Quick Start
 
 ```bash
-# 1. Setup inicial (primeira vez apenas)
-# Leia: docs/SETUP.md
+# 1. Setup inicial (primeira vez)
+# Rápido: docs/QUICKSTART.md
+# Detalhado: docs/SETUP.md
+# Com Docker: docs/SETUP_DOCKER.md
 
 # 2. Testar se funciona
 python3 -m classifier.cli.classify_batch --stats
@@ -21,13 +23,18 @@ python3 -m classifier.cli.classify_batch --limit 500
 
 ## 📚 Documentação
 
-**Leia APENAS isto:**
+**Comece aqui:**
 
-1. **[docs/SETUP.md](docs/SETUP.md)** - Configuração inicial
-2. **[docs/RULES_VALIDATION.md](docs/RULES_VALIDATION.md)** - Reportar erros
-3. **[docs/README.md](docs/README.md)** - Índice completo
+1. **[docs/QUICKSTART.md](docs/QUICKSTART.md)** - Setup rápido (5 min)
+2. **[docs/SETUP.md](docs/SETUP.md)** - Setup detalhado
+3. **[docs/SETUP_DOCKER.md](docs/SETUP_DOCKER.md)** - Se usar Docker
 
-**Tudo o resto está em `docs/` e é opcional.**
+**Depois:**
+
+4. **[docs/RULES_VALIDATION.md](docs/RULES_VALIDATION.md)** - Reportar erros de classificação
+5. **[docs/README.md](docs/README.md)** - Índice de documentação
+6. **[docs/guides/](docs/guides/)** - Guias técnicos
+7. **[docs/reference/](docs/reference/)** - Referência técnica
 
 ## 📊 Estrutura
 
@@ -36,13 +43,16 @@ classifier_regras/
 ├── src/classifier/          # Código-fonte
 ├── tests/                   # Testes
 ├── migrations/              # Migrations do banco
-├── docs/                    # Documentação (LEIA ISTO)
-│   ├── SETUP.md            # Setup
-│   ├── RULES_VALIDATION.md # Reportar erros
-│   ├── guides/             # Guias detalhados
-│   ├── reference/          # Referência técnica
-│   └── archive/            # Histórico (ignore)
-└── README.md               # Este arquivo
+├── docs/                    # Documentação
+│   ├── QUICKSTART.md        # Setup rápido (comece aqui!)
+│   ├── SETUP.md             # Setup detalhado
+│   ├── SETUP_DOCKER.md      # Setup com Docker
+│   ├── RULES_VALIDATION.md  # Reportar erros
+│   ├── README.md            # Índice de docs
+│   ├── guides/              # Guias técnicos
+│   └── reference/           # Referência técnica
+├── README.md                # Este arquivo
+└── .env.example             # Configuração exemplo
 ```
 
 ---

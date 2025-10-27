@@ -2,7 +2,7 @@
 
 **Leia isto PRIMEIRO se está começando do zero.**
 
-Se PostgreSQL está em Docker, veja `../SETUP_DOCKER.md`.
+Se PostgreSQL está em Docker, veja `SETUP_DOCKER.md`.
 
 ---
 
